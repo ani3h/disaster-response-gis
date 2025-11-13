@@ -5,12 +5,9 @@ Handles caching of frequently accessed spatial data and API responses.
 """
 
 import json
-import logging
 from functools import wraps
 import hashlib
 import config
-
-logger = logging.getLogger(__name__)
 
 # Simple in-memory cache (replace with Redis for production)
 _cache = {}
@@ -41,9 +38,7 @@ class CacheManager:
                     db=config.REDIS_DB,
                     decode_responses=True
                 )
-                logger.info("Redis cache initialized")
             except Exception as e:
-                logger.warning(f"Redis not available, falling back to simple cache: {e}")
                 self.cache_type = 'simple'
 
     def generate_key(self, prefix, *args, **kwargs):
@@ -91,7 +86,6 @@ class CacheManager:
                 return _cache.get(key)
 
         except Exception as e:
-            logger.error(f"Cache get error: {e}")
             return None
 
     def set(self, key, value, timeout=None):
@@ -116,10 +110,8 @@ class CacheManager:
                 # Simple in-memory cache (no expiration in this basic version)
                 _cache[key] = value
 
-            logger.debug(f"Cached key: {key}")
-
         except Exception as e:
-            logger.error(f"Cache set error: {e}")
+            pass
 
     def delete(self, key):
         """
@@ -134,10 +126,8 @@ class CacheManager:
             else:
                 _cache.pop(key, None)
 
-            logger.debug(f"Deleted cache key: {key}")
-
         except Exception as e:
-            logger.error(f"Cache delete error: {e}")
+            pass
 
     def clear(self):
         """
@@ -149,10 +139,8 @@ class CacheManager:
             else:
                 _cache.clear()
 
-            logger.info("Cache cleared")
-
         except Exception as e:
-            logger.error(f"Cache clear error: {e}")
+            pass
 
 
 # Global cache instance
@@ -189,11 +177,9 @@ def cached(timeout=None, key_prefix='cache'):
             # Try to get from cache
             cached_result = cache_manager.get(cache_key)
             if cached_result is not None:
-                logger.debug(f"Cache hit: {cache_key}")
                 return cached_result
 
             # Cache miss - execute function
-            logger.debug(f"Cache miss: {cache_key}")
             result = func(*args, **kwargs)
 
             # Store in cache
@@ -219,16 +205,14 @@ def invalidate_cache(key_prefix):
             keys = cache_manager.redis_client.keys(pattern)
             if keys:
                 cache_manager.redis_client.delete(*keys)
-                logger.info(f"Invalidated {len(keys)} cache keys with prefix: {key_prefix}")
         else:
             # For simple cache, clear all (no pattern matching)
             keys_to_delete = [k for k in _cache.keys() if k.startswith(key_prefix)]
             for key in keys_to_delete:
                 _cache.pop(key, None)
-            logger.info(f"Invalidated {len(keys_to_delete)} cache keys")
 
     except Exception as e:
-        logger.error(f"Error invalidating cache: {e}")
+        pass
 
 
 # TODO: Add more cache utilities:

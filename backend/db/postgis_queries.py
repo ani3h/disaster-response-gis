@@ -7,9 +7,7 @@ All queries return GeoJSON-compatible results.
 
 from sqlalchemy import text
 from backend.db.db_connection import engine
-import logging
 
-logger = logging.getLogger(__name__)
 
 
 def find_nearest_facilities(lat, lon, facility_table, limit=5, max_distance_km=50):
@@ -71,7 +69,6 @@ def find_nearest_facilities(lat, lon, facility_table, limit=5, max_distance_km=5
             return facilities
 
     except Exception as e:
-        logger.error(f"Error finding nearest facilities: {e}")
         return []
 
 
@@ -120,7 +117,6 @@ def check_point_in_disaster_zone(lat, lon):
                 return {'in_danger': False}
 
     except Exception as e:
-        logger.error(f"Error checking disaster zone: {e}")
         return {'in_danger': False, 'error': str(e)}
 
 
@@ -161,7 +157,6 @@ def get_disaster_zones_geojson():
                 return {'type': 'FeatureCollection', 'features': []}
 
     except Exception as e:
-        logger.error(f"Error getting disaster zones: {e}")
         return {'type': 'FeatureCollection', 'features': []}
 
 
@@ -212,7 +207,6 @@ def get_roads_in_bbox(min_lon, min_lat, max_lon, max_lat):
                 return {'type': 'FeatureCollection', 'features': []}
 
     except Exception as e:
-        logger.error(f"Error getting roads: {e}")
         return {'type': 'FeatureCollection', 'features': []}
 
 
@@ -247,7 +241,6 @@ def create_buffer_zone(geom_wkt, buffer_distance_meters):
             return row.geometry if row else None
 
     except Exception as e:
-        logger.error(f"Error creating buffer: {e}")
         return None
 
 
@@ -278,7 +271,6 @@ def calculate_affected_population(disaster_geom_wkt):
             return row.total_population if row else 0
 
     except Exception as e:
-        logger.error(f"Error calculating affected population: {e}")
         return 0
 
 

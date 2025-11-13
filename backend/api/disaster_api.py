@@ -6,9 +6,7 @@ API endpoints for disaster zone information and updates.
 
 from flask import Blueprint, jsonify, request
 from backend.db.postgis_queries import get_disaster_zones_geojson, check_point_in_disaster_zone
-import logging
 
-logger = logging.getLogger(__name__)
 
 # Create Blueprint
 disaster_bp = Blueprint('disaster', __name__)
@@ -42,7 +40,6 @@ def get_disaster_zones():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error fetching disaster zones: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -89,7 +86,6 @@ def check_location_safety():
             'message': 'Invalid latitude or longitude format'
         }), 400
     except Exception as e:
-        logger.error(f"Error checking location safety: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -134,7 +130,6 @@ def get_disaster_updates():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error fetching disaster updates: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -170,7 +165,6 @@ def get_disaster_statistics():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error fetching disaster statistics: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -219,7 +213,6 @@ def analyze_disaster_impact():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error analyzing disaster impact: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)

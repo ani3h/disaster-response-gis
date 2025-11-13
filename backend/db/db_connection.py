@@ -10,11 +10,6 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.pool import QueuePool
 import config
-import logging
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Create the SQLAlchemy engine with connection pooling
 engine = create_engine(
@@ -47,18 +42,11 @@ def init_db():
             # Check if PostGIS extension is available
             result = connection.execute(text("SELECT PostGIS_version();"))
             version = result.fetchone()
-            if version:
-                logger.info(f"PostGIS version: {version[0]}")
-            else:
-                logger.warning("PostGIS extension not found. Please install PostGIS.")
-
-        logger.info("Database connection initialized successfully")
 
         # TODO: Uncomment to auto-create tables from models
         # Base.metadata.create_all(bind=engine)
 
     except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
         raise
 
 
@@ -92,7 +80,8 @@ def test_connection():
         with engine.connect() as connection:
             # Test basic connection
             result = connection.execute(text("SELECT 1"))
-            assert result.fetchone()[0] == 1
+            if result.fetchone()[0] != 1:
+                return False
 
             # Test PostGIS extension
             result = connection.execute(text("""
@@ -103,7 +92,6 @@ def test_connection():
             postgis_installed = result.fetchone()[0]
 
             if not postgis_installed:
-                logger.warning("PostGIS extension is not installed!")
                 return False
 
             # Test spatial query
@@ -111,13 +99,10 @@ def test_connection():
                 SELECT ST_AsText(ST_Point(78.9629, 20.5937));
             """))
             point = result.fetchone()[0]
-            logger.info(f"Test spatial query successful: {point}")
 
-            logger.info("Database connection test: PASSED")
             return True
 
     except Exception as e:
-        logger.error(f"Database connection test FAILED: {e}")
         return False
 
 
@@ -145,7 +130,6 @@ def execute_raw_query(query, params=None):
                 return []
 
     except Exception as e:
-        logger.error(f"Query execution failed: {e}")
         raise
 
 
@@ -157,9 +141,8 @@ def close_db():
     try:
         db_session.remove()
         engine.dispose()
-        logger.info("Database connections closed")
     except Exception as e:
-        logger.error(f"Error closing database connections: {e}")
+        pass
 
 
 # Cleanup function for Flask teardown

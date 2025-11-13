@@ -5,11 +5,8 @@ Fetches real-time disaster data from external APIs and updates the database.
 """
 
 import requests
-import logging
 from datetime import datetime
 import config
-
-logger = logging.getLogger(__name__)
 
 
 class RealTimeDataFetcher:
@@ -33,8 +30,6 @@ class RealTimeDataFetcher:
             list: Weather alert data
         """
         try:
-            logger.info(f"Fetching weather alerts for region: {region}")
-
             # TODO: Replace with actual weather API
             # Example: OpenWeatherMap, Weather.gov, etc.
             # url = f"https://api.weather.com/alerts?region={region}&apikey={self.weather_api_key}"
@@ -45,11 +40,9 @@ class RealTimeDataFetcher:
             # Placeholder data
             alerts = []
 
-            logger.info(f"Fetched {len(alerts)} weather alerts")
             return alerts
 
         except requests.RequestException as e:
-            logger.error(f"Error fetching weather alerts: {e}")
             return []
 
     def fetch_earthquake_data(self, min_magnitude=4.0, hours=24):
@@ -64,8 +57,6 @@ class RealTimeDataFetcher:
             list: Earthquake events
         """
         try:
-            logger.info(f"Fetching earthquakes (magnitude >= {min_magnitude}, last {hours}h)")
-
             # Example: USGS Earthquake API
             # url = "https://earthquake.usgs.gov/fdsnws/event/1/query"
             # params = {
@@ -80,11 +71,9 @@ class RealTimeDataFetcher:
             # Placeholder data
             earthquakes = []
 
-            logger.info(f"Fetched {len(earthquakes)} earthquake events")
             return earthquakes
 
         except requests.RequestException as e:
-            logger.error(f"Error fetching earthquake data: {e}")
             return []
 
     def fetch_cyclone_data(self, region='INDIA'):
@@ -98,19 +87,15 @@ class RealTimeDataFetcher:
             list: Active cyclone data
         """
         try:
-            logger.info(f"Fetching cyclone data for region: {region}")
-
             # TODO: Replace with actual cyclone tracking API
             # Example: IMD (India Meteorological Department), JTWC, etc.
 
             # Placeholder data
             cyclones = []
 
-            logger.info(f"Fetched {len(cyclones)} active cyclones")
             return cyclones
 
         except requests.RequestException as e:
-            logger.error(f"Error fetching cyclone data: {e}")
             return []
 
     def fetch_flood_alerts(self, region='IN'):
@@ -124,19 +109,15 @@ class RealTimeDataFetcher:
             list: Flood alerts
         """
         try:
-            logger.info(f"Fetching flood alerts for region: {region}")
-
             # TODO: Replace with actual flood monitoring API
             # Example: River gauge data, satellite flood detection, etc.
 
             # Placeholder data
             flood_alerts = []
 
-            logger.info(f"Fetched {len(flood_alerts)} flood alerts")
             return flood_alerts
 
         except requests.RequestException as e:
-            logger.error(f"Error fetching flood alerts: {e}")
             return []
 
     def update_disaster_database(self):
@@ -148,8 +129,6 @@ class RealTimeDataFetcher:
             dict: Update summary
         """
         try:
-            logger.info("Starting real-time disaster data update...")
-
             summary = {
                 'timestamp': datetime.utcnow().isoformat(),
                 'weather_alerts': 0,
@@ -188,11 +167,9 @@ class RealTimeDataFetcher:
             except Exception as e:
                 summary['errors'].append(f"Flood alerts: {str(e)}")
 
-            logger.info(f"Update complete: {summary}")
             return summary
 
         except Exception as e:
-            logger.error(f"Error updating disaster database: {e}")
             return {'error': str(e)}
 
 
@@ -216,12 +193,11 @@ def schedule_updates():
         )
 
         scheduler.start()
-        logger.info("Background scheduler started")
 
     except ImportError:
-        logger.warning("APScheduler not installed. Automatic updates disabled.")
+        pass
     except Exception as e:
-        logger.error(f"Error starting scheduler: {e}")
+        pass
 
 
 # TODO: Add more data fetchers:

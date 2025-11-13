@@ -6,9 +6,7 @@ API endpoints for map layers and spatial data.
 
 from flask import Blueprint, jsonify, request
 from backend.db.postgis_queries import get_roads_in_bbox
-import logging
 
-logger = logging.getLogger(__name__)
 
 # Create Blueprint
 layers_bp = Blueprint('layers', __name__)
@@ -92,7 +90,6 @@ def get_all_layers():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error fetching layers metadata: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -137,7 +134,6 @@ def get_roads_layer():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error fetching roads layer: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -173,7 +169,6 @@ def get_admin_boundaries():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error fetching boundaries: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -210,7 +205,6 @@ def get_cyclone_tracks():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error fetching cyclone tracks: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -248,7 +242,6 @@ def calculate_safe_zones():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error calculating safe zones: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -295,7 +288,6 @@ def generate_heatmap():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error generating heatmap: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)

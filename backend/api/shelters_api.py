@@ -6,9 +6,7 @@ API endpoints for shelter and hospital information.
 
 from flask import Blueprint, jsonify, request
 from backend.db.postgis_queries import find_nearest_facilities
-import logging
 
-logger = logging.getLogger(__name__)
 
 # Create Blueprint
 shelters_bp = Blueprint('shelters', __name__)
@@ -64,7 +62,6 @@ def get_nearest_shelters():
             'message': 'Invalid coordinate format'
         }), 400
     except Exception as e:
-        logger.error(f"Error finding nearest shelters: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -115,7 +112,6 @@ def get_all_shelters():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error fetching shelters: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -151,7 +147,6 @@ def get_shelter_capacity_summary():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error fetching capacity summary: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -207,7 +202,6 @@ def get_nearest_hospitals():
             'message': 'Invalid coordinate format'
         }), 400
     except Exception as e:
-        logger.error(f"Error finding nearest hospitals: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -252,7 +246,6 @@ def get_all_hospitals():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error fetching hospitals: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)

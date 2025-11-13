@@ -5,9 +5,7 @@ API endpoints for route calculation and navigation.
 """
 
 from flask import Blueprint, jsonify, request
-import logging
 
-logger = logging.getLogger(__name__)
 
 # Create Blueprint
 routes_bp = Blueprint('routes', __name__)
@@ -85,7 +83,6 @@ def calculate_safe_route():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error calculating safe route: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -145,7 +142,6 @@ def get_alternative_routes():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error getting alternative routes: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -200,7 +196,6 @@ def calculate_distance():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error calculating distance: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -250,7 +245,6 @@ def find_nearest_road():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error finding nearest road: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)

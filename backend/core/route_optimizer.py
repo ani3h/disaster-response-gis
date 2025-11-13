@@ -9,11 +9,9 @@ import networkx as nx
 import geopandas as gpd
 from shapely.geometry import Point, LineString
 import numpy as np
-import logging
 from backend.core.spatial_analysis import spatial_intersection
 import config
 
-logger = logging.getLogger(__name__)
 
 
 def build_road_network(roads_gdf):
@@ -27,7 +25,6 @@ def build_road_network(roads_gdf):
         nx.Graph: Road network graph
     """
     try:
-        logger.info("Building road network graph...")
 
         G = nx.Graph()
 
@@ -58,11 +55,9 @@ def build_road_network(roads_gdf):
                 # Add edge to graph
                 G.add_edge(start, end, **edge_attrs)
 
-        logger.info(f"Graph built with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
         return G
 
     except Exception as e:
-        logger.error(f"Error building road network: {e}")
         return nx.Graph()
 
 
@@ -93,11 +88,9 @@ def find_nearest_node(graph, point):
         nearest_idx = np.argmin(distances)
         nearest_node = tuple(nodes[nearest_idx])
 
-        logger.info(f"Found nearest node at distance: {distances[nearest_idx]:.6f}")
         return nearest_node
 
     except Exception as e:
-        logger.error(f"Error finding nearest node: {e}")
         return None
 
 
@@ -115,14 +108,12 @@ def compute_shortest_path(graph, start_point, end_point, algorithm='dijkstra'):
         dict: Path information including coordinates, distance, and geometry
     """
     try:
-        logger.info(f"Computing shortest path using {algorithm}...")
 
         # Find nearest nodes
         start_node = find_nearest_node(graph, start_point)
         end_node = find_nearest_node(graph, end_point)
 
         if start_node is None or end_node is None:
-            logger.error("Could not find start or end nodes")
             return None
 
         # Compute shortest path
@@ -163,14 +154,11 @@ def compute_shortest_path(graph, start_point, end_point, algorithm='dijkstra'):
             'path_details': path_details
         }
 
-        logger.info(f"Path found: {result['total_distance_km']} km, {result['num_segments']} segments")
         return result
 
     except nx.NetworkXNoPath:
-        logger.warning("No path exists between start and end points")
         return None
     except Exception as e:
-        logger.error(f"Error computing shortest path: {e}")
         return None
 
 
@@ -189,7 +177,6 @@ def compute_safe_route(roads_gdf, start_point, end_point, disaster_zones_gdf, bu
         dict: Safe route information
     """
     try:
-        logger.info("Computing safe evacuation route...")
 
         # Filter out roads that intersect disaster zones
         if len(disaster_zones_gdf) > 0:
@@ -207,7 +194,6 @@ def compute_safe_route(roads_gdf, start_point, end_point, disaster_zones_gdf, bu
             # Filter safe roads
             safe_roads = roads_gdf[~roads_gdf.index.isin(unsafe_indices)]
 
-            logger.info(f"Filtered out {len(unsafe_indices)} unsafe road segments")
         else:
             safe_roads = roads_gdf
 
@@ -215,14 +201,12 @@ def compute_safe_route(roads_gdf, start_point, end_point, disaster_zones_gdf, bu
         safe_roads = safe_roads[safe_roads.get('is_blocked', False) == False]
 
         if len(safe_roads) == 0:
-            logger.error("No safe roads available")
             return None
 
         # Build network from safe roads
         graph = build_road_network(safe_roads)
 
         if graph.number_of_nodes() == 0:
-            logger.error("Empty road network after filtering")
             return None
 
         # Compute shortest path
@@ -235,7 +219,6 @@ def compute_safe_route(roads_gdf, start_point, end_point, disaster_zones_gdf, bu
         return route
 
     except Exception as e:
-        logger.error(f"Error computing safe route: {e}")
         return None
 
 
@@ -253,7 +236,6 @@ def find_alternative_routes(graph, start_point, end_point, num_routes=3):
         list: List of route dictionaries
     """
     try:
-        logger.info(f"Finding {num_routes} alternative routes...")
 
         # Find nearest nodes
         start_node = find_nearest_node(graph, start_point)
@@ -300,13 +282,10 @@ def find_alternative_routes(graph, start_point, end_point, num_routes=3):
                 routes.append(route)
 
         except Exception as e:
-            logger.warning(f"Could not find alternative routes: {e}")
 
-        logger.info(f"Found {len(routes)} alternative routes")
         return routes
 
     except Exception as e:
-        logger.error(f"Error finding alternative routes: {e}")
         return []
 
 
@@ -340,7 +319,6 @@ def calculate_route_safety_score(route_geometry, disaster_zones_gdf):
         return round(safety_score, 2)
 
     except Exception as e:
-        logger.error(f"Error calculating safety score: {e}")
         return 50.0
 
 

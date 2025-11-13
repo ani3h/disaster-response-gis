@@ -7,10 +7,8 @@ Analyzes disaster impact on population, infrastructure, and resources.
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Point, Polygon
-import logging
 from backend.core.spatial_analysis import spatial_intersection, calculate_area
 
-logger = logging.getLogger(__name__)
 
 
 def analyze_disaster_impact(disaster_zone_gdf, admin_boundaries_gdf, hospitals_gdf, shelters_gdf, roads_gdf):
@@ -28,7 +26,6 @@ def analyze_disaster_impact(disaster_zone_gdf, admin_boundaries_gdf, hospitals_g
         dict: Comprehensive impact analysis results
     """
     try:
-        logger.info("Starting comprehensive disaster impact analysis...")
 
         # Calculate affected area
         disaster_with_area = calculate_area(disaster_zone_gdf)
@@ -59,11 +56,9 @@ def analyze_disaster_impact(disaster_zone_gdf, admin_boundaries_gdf, hospitals_g
             'severity_assessment': assess_severity(affected_population, total_affected_area)
         }
 
-        logger.info(f"Impact analysis complete: {affected_population} people affected")
         return impact_summary
 
     except Exception as e:
-        logger.error(f"Error in disaster impact analysis: {e}")
         return {}
 
 
@@ -124,11 +119,9 @@ def calculate_shelter_capacity_gap(disaster_zone_gdf, shelters_gdf, estimated_af
             'capacity_sufficient': capacity_gap <= 0
         }
 
-        logger.info(f"Shelter capacity gap: {capacity_gap}")
         return result
 
     except Exception as e:
-        logger.error(f"Error calculating shelter capacity: {e}")
         return {}
 
 
@@ -159,11 +152,9 @@ def identify_vulnerable_infrastructure(disaster_zone_gdf, hospitals_gdf, power_s
             affected_power = spatial_intersection(power_stations_gdf, disaster_zone_gdf)
             vulnerable['power_stations'] = affected_power.to_dict('records') if len(affected_power) > 0 else []
 
-        logger.info(f"Identified {len(vulnerable['hospitals'])} vulnerable hospitals")
         return vulnerable
 
     except Exception as e:
-        logger.error(f"Error identifying vulnerable infrastructure: {e}")
         return {}
 
 
@@ -195,11 +186,9 @@ def calculate_economic_impact(disaster_zone_gdf, admin_boundaries_gdf):
             'note': 'This is a rough estimate. Actual assessment requires detailed survey.'
         }
 
-        logger.info(f"Estimated economic impact: ${estimated_damage_usd:,.0f}")
         return result
 
     except Exception as e:
-        logger.error(f"Error calculating economic impact: {e}")
         return {}
 
 
@@ -215,7 +204,6 @@ def generate_impact_report(disaster_zone_gdf, all_layers_dict):
         dict: Complete impact report
     """
     try:
-        logger.info("Generating comprehensive impact report...")
 
         report = {
             'timestamp': pd.Timestamp.now().isoformat(),
@@ -229,11 +217,9 @@ def generate_impact_report(disaster_zone_gdf, all_layers_dict):
         # TODO: Implement full report generation
         # This would include all the above functions plus additional analysis
 
-        logger.info("Impact report generated")
         return report
 
     except Exception as e:
-        logger.error(f"Error generating impact report: {e}")
         return {}
 
 

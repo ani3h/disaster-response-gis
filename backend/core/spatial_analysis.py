@@ -9,10 +9,8 @@ import geopandas as gpd
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 from shapely.ops import unary_union
 import numpy as np
-import logging
 import config
 
-logger = logging.getLogger(__name__)
 
 
 def create_buffer(gdf, distance_meters):
@@ -27,7 +25,6 @@ def create_buffer(gdf, distance_meters):
         GeoDataFrame: Buffered geometries
     """
     try:
-        logger.info(f"Creating {distance_meters}m buffer...")
 
         # Convert to projected CRS for accurate distance calculation
         # Using UTM or local projection would be better, but for simplicity using Web Mercator
@@ -40,11 +37,9 @@ def create_buffer(gdf, distance_meters):
         # Convert back to WGS84
         buffered = buffered.to_crs(epsg=config.DEFAULT_SRID)
 
-        logger.info(f"Buffer created for {len(buffered)} features")
         return buffered
 
     except Exception as e:
-        logger.error(f"Error creating buffer: {e}")
         return gdf
 
 
@@ -79,7 +74,6 @@ def calculate_distance(point1, point2):
         return distance
 
     except Exception as e:
-        logger.error(f"Error calculating distance: {e}")
         return None
 
 
@@ -108,11 +102,9 @@ def find_points_within_distance(points_gdf, target_point, distance_meters):
         # Find intersection
         within = points_gdf[points_gdf.geometry.within(target_buffered.iloc[0].geometry)]
 
-        logger.info(f"Found {len(within)} points within {distance_meters}m")
         return within
 
     except Exception as e:
-        logger.error(f"Error finding points within distance: {e}")
         return gpd.GeoDataFrame()
 
 
@@ -128,7 +120,6 @@ def spatial_intersection(gdf1, gdf2):
         GeoDataFrame: Intersecting features
     """
     try:
-        logger.info("Calculating spatial intersection...")
 
         # Ensure same CRS
         if gdf1.crs != gdf2.crs:
@@ -137,11 +128,9 @@ def spatial_intersection(gdf1, gdf2):
         # Perform intersection
         intersection = gpd.overlay(gdf1, gdf2, how='intersection')
 
-        logger.info(f"Found {len(intersection)} intersecting features")
         return intersection
 
     except Exception as e:
-        logger.error(f"Error calculating intersection: {e}")
         return gpd.GeoDataFrame()
 
 
@@ -157,7 +146,6 @@ def spatial_difference(gdf1, gdf2):
         GeoDataFrame: Difference features
     """
     try:
-        logger.info("Calculating spatial difference...")
 
         # Ensure same CRS
         if gdf1.crs != gdf2.crs:
@@ -166,11 +154,9 @@ def spatial_difference(gdf1, gdf2):
         # Perform difference
         difference = gpd.overlay(gdf1, gdf2, how='difference')
 
-        logger.info(f"Difference contains {len(difference)} features")
         return difference
 
     except Exception as e:
-        logger.error(f"Error calculating difference: {e}")
         return gdf1
 
 
@@ -187,7 +173,6 @@ def identify_safe_zones(boundary_gdf, disaster_zones_gdf, buffer_distance=5000):
         GeoDataFrame: Safe zones
     """
     try:
-        logger.info("Identifying safe zones...")
 
         # Create buffer around disaster zones
         disaster_buffered = create_buffer(disaster_zones_gdf, buffer_distance)
@@ -195,11 +180,9 @@ def identify_safe_zones(boundary_gdf, disaster_zones_gdf, buffer_distance=5000):
         # Calculate difference (safe zones = boundary - disaster zones)
         safe_zones = spatial_difference(boundary_gdf, disaster_buffered)
 
-        logger.info(f"Identified {len(safe_zones)} safe zones")
         return safe_zones
 
     except Exception as e:
-        logger.error(f"Error identifying safe zones: {e}")
         return boundary_gdf
 
 
@@ -220,11 +203,9 @@ def calculate_area(gdf):
         # Calculate area in square meters, convert to square kilometers
         gdf['area_sqkm'] = gdf_proj.geometry.area / 1_000_000
 
-        logger.info(f"Calculated area for {len(gdf)} features")
         return gdf
 
     except Exception as e:
-        logger.error(f"Error calculating area: {e}")
         return gdf
 
 
@@ -242,11 +223,9 @@ def calculate_centroid(gdf):
         centroids = gdf.copy()
         centroids['geometry'] = gdf.geometry.centroid
 
-        logger.info(f"Calculated centroids for {len(centroids)} features")
         return centroids
 
     except Exception as e:
-        logger.error(f"Error calculating centroids: {e}")
         return gdf
 
 
@@ -262,11 +241,9 @@ def merge_geometries(gdf):
     """
     try:
         merged = unary_union(gdf.geometry)
-        logger.info(f"Merged {len(gdf)} geometries into one")
         return merged
 
     except Exception as e:
-        logger.error(f"Error merging geometries: {e}")
         return None
 
 
@@ -282,7 +259,6 @@ def point_in_polygon(point_gdf, polygon_gdf):
         GeoDataFrame: Points with polygon attributes joined
     """
     try:
-        logger.info("Performing point-in-polygon spatial join...")
 
         # Ensure same CRS
         if point_gdf.crs != polygon_gdf.crs:
@@ -291,11 +267,9 @@ def point_in_polygon(point_gdf, polygon_gdf):
         # Spatial join
         joined = gpd.sjoin(point_gdf, polygon_gdf, how='left', predicate='within')
 
-        logger.info(f"Joined {len(joined)} points with polygons")
         return joined
 
     except Exception as e:
-        logger.error(f"Error in point-in-polygon: {e}")
         return point_gdf
 
 
@@ -330,11 +304,9 @@ def calculate_impact_zone(disaster_center, radius_meters, admin_boundaries_gdf):
             'affected_areas': affected_areas.to_dict('records') if len(affected_areas) > 0 else []
         }
 
-        logger.info(f"Impact zone affects {len(affected_areas)} administrative areas")
         return result
 
     except Exception as e:
-        logger.error(f"Error calculating impact zone: {e}")
         return {}
 
 
