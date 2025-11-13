@@ -97,12 +97,6 @@ ALLOWED_EXTENSIONS = {'geojson', 'shp', 'kml', 'gpx', 'json'}
 MAX_UPLOAD_SIZE = int(os.getenv('MAX_UPLOAD_SIZE', 16 * 1024 * 1024))  # 16MB
 
 # =============================================================================
-# Logging Configuration
-# =============================================================================
-LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
-LOG_FILE = os.getenv('LOG_FILE', 'logs/app.log')
-
-# =============================================================================
 # Data Directories
 # =============================================================================
 RAW_DATA_DIR = 'data/raw'
