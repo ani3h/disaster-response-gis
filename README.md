@@ -27,38 +27,51 @@ This project aims to create an **interactive GIS-based disaster response dashboa
 ```
 disaster-response-gis/
 │
-├── app/                                 # Core application source code
-│   ├── __init__.py                         # Flask app initialization
-│   ├── routes.py                           # Defines API endpoints for frontend requests
-│   ├── data_processing.py                  # Handles spatial data cleaning and analysis
-│   ├── route_optimizer.py                  # Computes safe evacuation routes
-│   ├── api_manager.py                      # Fetches live disaster and weather data
-│   └── database.py                         # Manages PostGIS database connections and queries
+│ app.py                     # Main Flask app entry point
+│ config.py                  # App + DB configuration
+│ requirements.txt           # Python dependencies
+│ .env.example               # Sample environment variables
 │
-├── templates/                           # Frontend HTML templates (Flask + Leaflet)
-│   ├── base.html                           # Common layout for all pages
-│   └── index.html                          # Interactive dashboard with map and controls
+├── backend/                 # Backend logic (APIs, GIS, DB)
+│   ├── api/                 
+│   │   ├── disaster_api.py  # Disaster zones API
+│   │   ├── routes_api.py    # Safe route API
+│   │   ├── shelters_api.py  # Shelter/hospital API
+│   │   └── layers_api.py    # Map layers API
+│   │
+│   ├── core/                
+│   │   ├── data_loader.py      # Load GIS data
+│   │   ├── spatial_analysis.py # Buffers, overlays, risk zones
+│   │   ├── route_optimizer.py  # Route calculation (NetworkX)
+│   │   └── impact_analysis.py  # Severity + exposure analysis
+│   │
+│   ├── db/
+│   │   ├── db_connection.py   # PostGIS connection
+│   │   ├── models.py          # DB models
+│   │   └── postgis_queries.py # Spatial SQL calls
+│   │
+│   ├── services/
+│   │   ├── real_time_fetcher.py # Live data fetch
+│   │   └── cache_manager.py    # API caching
+│   │
+│   └── __init__.py
 │
-├── static/                              # Static frontend assets
-│   ├── css/
-│   │   └── styles.css                      # Basic styling for the dashboard and map
-│   └── js/
-│       ├── map.js                          # Leaflet map initialization and user interactions
-│       └── api.js                          # Handles frontend-to-backend AJAX requests
+├── frontend/                # Web dashboard (Leaflet)
+│   ├── templates/index.html # Main UI
+│   └── static/
+│       ├── css/styles.css   # Dashboard styles
+│       └── js/
+│           ├── map.js        # Leaflet map init
+│           ├── layers.js     # Layer toggles
+│           ├── routing.js    # Route drawing
+│           └── api_client.js # API calls
 │
-├── data/                                # Spatial datasets (small, manageable size)
-│   ├── flood_zones.geojson                 # Example disaster layer
-│   ├── hospitals.geojson                   # Hospitals and medical centers
-│   ├── shelters.geojson                    # Safe zones and relief centers
-│   └── roads.geojson                       # Road network for route analysis
+├── data/                    # GIS datasets
+│   ├── raw/                 # Raw data
+│   └── processed/           # Clean GeoJSON layers
 │
-├── database/                            # Minimal database setup
-│   └── init.sql                            # PostGIS schema setup for spatial tables
-│
-├── requirements.txt                        # Python dependencies
-├── config.py                               # Configuration file (database URL, API keys)
-├── run.py                                  # Flask application entry point
-└── README.md                               # Quick setup and usage guide
+├── docs/                    # SRS + diagrams
+└── tests/                   # Backend tests
 
 ```
 
