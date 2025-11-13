@@ -66,12 +66,10 @@ disaster-response-gis/
 │           ├── routing.js    # Route drawing
 │           └── api_client.js # API calls
 │
-├── data/                    # GIS datasets
-│   ├── raw/                 # Raw data
-│   └── processed/           # Clean GeoJSON layers
-│
-├── docs/                    # SRS + diagrams
-└── tests/                   # Backend tests
+└── data/                    # GIS datasets
+    ├── raw/                 # Raw data
+    └── processed/           # Clean GeoJSON layers
+
 
 ```
 
