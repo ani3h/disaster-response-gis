@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disaster Response GIS Dashboard</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1>🌍 Disaster Response GIS Dashboard</h1>
+            <div class="header-status">
+                <span class="status-indicator" id="connection-status">●</span>
+                <span id="last-update">Loading...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <h3>Map Layers</h3>
+                <div class="layer-controls">
+                    <label class="layer-checkbox">
+                        <input type="checkbox" id="layer-disaster-zones" checked>
+                        <span class="layer-icon" style="background-color: #ff0000;"></span>
+                        Disaster Zones
+                    </label>
+                    <label class="layer-checkbox">
+                        <input type="checkbox" id="layer-shelters" checked>
+                        <span class="layer-icon" style="background-color: #0066ff;"></span>
+                        Shelters
+                    </label>
+                    <label class="layer-checkbox">
+                        <input type="checkbox" id="layer-hospitals" checked>
+                        <span class="layer-icon" style="background-color: #00cc00;"></span>
+                        Hospitals
+                    </label>
+                    <label class="layer-checkbox">
+                        <input type="checkbox" id="layer-roads">
+                        <span class="layer-icon" style="background-color: #333333;"></span>
+                        Roads
+                    </label>
+                    <label class="layer-checkbox">
+                        <input type="checkbox" id="layer-boundaries">
+                        <span class="layer-icon" style="background-color: #999999;"></span>
+                        Boundaries
+                    </label>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Safe Route Planner</h3>
+                <div class="route-controls">
+                    <input type="text" id="route-start" placeholder="Start location..." class="route-input">
+                    <input type="text" id="route-end" placeholder="Destination..." class="route-input">
+                    <button id="calculate-route" class="btn btn-primary">Calculate Safe Route</button>
+                    <button id="clear-route" class="btn btn-secondary">Clear Route</button>
+                </div>
+                <div id="route-info" class="route-info" style="display: none;">
+                    <p><strong>Distance:</strong> <span id="route-distance">-</span> km</p>
+                    <p><strong>Safety Score:</strong> <span id="route-safety">-</span>/100</p>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Disaster Statistics</h3>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-label">Active Disasters</div>
+                        <div class="stat-value" id="stat-disasters">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Affected Population</div>
+                        <div class="stat-value" id="stat-population">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Available Shelters</div>
+                        <div class="stat-value" id="stat-shelters">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Active Alerts</div>
+                        <div class="stat-value" id="stat-alerts">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Recent Updates</h3>
+                <div id="updates-list" class="updates-list">
+                    <p class="loading">Loading updates...</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Map Container -->
+        <main class="map-container">
+            <div id="map"></div>
+
+            <!-- Map Controls Overlay -->
+            <div class="map-controls">
+                <button class="control-btn" id="locate-me" title="Find my location">📍</button>
+                <button class="control-btn" id="refresh-data" title="Refresh data">🔄</button>
+                <button class="control-btn" id="toggle-fullscreen" title="Toggle fullscreen">⛶</button>
+            </div>
+
+            <!-- Search Box -->
+            <div class="search-box">
+                <input type="text" id="location-search" placeholder="Search location...">
+                <button id="search-btn">🔍</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p>Loading data...</p>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Custom JavaScript -->
+    <script src="{{ url_for('static', filename='js/api_client.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/layers.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/routing.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+</body>
+</html>
