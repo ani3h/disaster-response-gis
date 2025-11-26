@@ -146,22 +146,35 @@ def get_admin_boundaries():
     Get administrative boundaries as GeoJSON.
 
     Query Parameters:
-        level (int, optional): Admin level (1=Country, 2=State, 3=District)
+        level (str, optional): Admin level (state, districts, taluks, villages)
         bbox (str, optional): Bounding box filter
 
     Returns:
         JSON: GeoJSON FeatureCollection of boundaries
     """
     try:
-        level = request.args.get('level', type=int)
+        from backend.core.data_loader import load_boundary_layers, convert_to_geojson
 
-        # TODO: Query database for admin boundaries
+        level = request.args.get('level', 'districts')
 
-        # Placeholder response
-        geojson = {
-            'type': 'FeatureCollection',
-            'features': []
-        }
+        boundaries = load_boundary_layers()
+
+        # Select appropriate boundary level
+        if level == 'state':
+            gdf = boundaries.get('state')
+        elif level == 'districts':
+            gdf = boundaries.get('districts')
+        elif level == 'taluks':
+            gdf = boundaries.get('taluks')
+        elif level == 'villages':
+            gdf = boundaries.get('villages')
+        else:
+            gdf = boundaries.get('main')
+
+        if gdf is None:
+            geojson = {'type': 'FeatureCollection', 'features': []}
+        else:
+            geojson = convert_to_geojson(gdf)
 
         return jsonify({
             'status': 'success',
@@ -285,6 +298,169 @@ def generate_heatmap():
         return jsonify({
             'status': 'success',
             'data': heatmap_data
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@layers_bp.route('/buildings', methods=['GET'])
+def get_buildings_layer():
+    """
+    Get buildings layer as GeoJSON.
+
+    Query Parameters:
+        bbox (str, optional): Bounding box (minLon,minLat,maxLon,maxLat)
+
+    Returns:
+        JSON: GeoJSON FeatureCollection of buildings
+    """
+    try:
+        from backend.core.data_loader import load_buildings, convert_to_geojson, filter_by_bbox
+
+        buildings_gdf = load_buildings()
+
+        if buildings_gdf is None:
+            geojson = {'type': 'FeatureCollection', 'features': []}
+        else:
+            bbox_str = request.args.get('bbox')
+            if bbox_str:
+                bbox = [float(x) for x in bbox_str.split(',')]
+                if len(bbox) == 4:
+                    buildings_gdf = filter_by_bbox(buildings_gdf, *bbox)
+
+            geojson = convert_to_geojson(buildings_gdf)
+
+        return jsonify({
+            'status': 'success',
+            'data': geojson
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@layers_bp.route('/coastline', methods=['GET'])
+def get_coastline_layer():
+    """
+    Get coastline layer as GeoJSON.
+
+    Returns:
+        JSON: GeoJSON FeatureCollection of coastline
+    """
+    try:
+        from backend.core.data_loader import load_coastline, convert_to_geojson
+
+        coastlines = load_coastline()
+
+        # Use main coastline
+        coastline_gdf = coastlines.get('main')
+
+        if coastline_gdf is None:
+            geojson = {'type': 'FeatureCollection', 'features': []}
+        else:
+            geojson = convert_to_geojson(coastline_gdf)
+
+        return jsonify({
+            'status': 'success',
+            'data': geojson
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@layers_bp.route('/landslides', methods=['GET'])
+def get_landslides_layer():
+    """
+    Get landslides layer as GeoJSON.
+
+    Returns:
+        JSON: GeoJSON FeatureCollection of landslide zones
+    """
+    try:
+        from backend.core.spatial_analysis import compute_landslide_zones
+
+        geojson = compute_landslide_zones()
+
+        return jsonify({
+            'status': 'success',
+            'data': geojson
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@layers_bp.route('/cyclone', methods=['GET'])
+def get_cyclone_layer():
+    """
+    Get cyclone layer as GeoJSON.
+
+    Returns:
+        JSON: GeoJSON FeatureCollection of cyclone zones
+    """
+    try:
+        from backend.core.spatial_analysis import compute_cyclone_zones
+
+        geojson = compute_cyclone_zones()
+
+        return jsonify({
+            'status': 'success',
+            'data': geojson
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@layers_bp.route('/affected-zones', methods=['GET'])
+def get_affected_zones():
+    """
+    Get all affected zones (combined hazards) as GeoJSON.
+
+    Returns:
+        JSON: GeoJSON FeatureCollection of all affected zones
+    """
+    try:
+        from backend.core.spatial_analysis import compute_landslide_zones, compute_cyclone_zones, compute_flood_zones
+        from backend.core.data_loader import load_rivers
+
+        # Load all hazard zones
+        landslides = compute_landslide_zones()
+        cyclones = compute_cyclone_zones()
+        rivers_gdf = load_rivers()
+        floods = compute_flood_zones(rivers_gdf, buffer_distance=1000)
+
+        # Combine all features
+        all_features = []
+        all_features.extend(landslides.get('features', []))
+        all_features.extend(cyclones.get('features', []))
+        all_features.extend(floods.get('features', []))
+
+        combined_geojson = {
+            'type': 'FeatureCollection',
+            'features': all_features
+        }
+
+        return jsonify({
+            'status': 'success',
+            'data': combined_geojson
         }), 200
 
     except Exception as e:

@@ -310,6 +310,244 @@ def calculate_impact_zone(disaster_center, radius_meters, admin_boundaries_gdf):
         return {}
 
 
+def compute_landslide_zones():
+    """
+    Compute landslide hazard zones from loaded landslide data.
+
+    Returns:
+        dict: GeoJSON FeatureCollection of landslide zones
+    """
+    try:
+        from backend.core.data_loader import load_landslide_layers
+
+        landslides_gdf = load_landslide_layers()
+
+        if landslides_gdf is None or len(landslides_gdf) == 0:
+            return {'type': 'FeatureCollection', 'features': []}
+
+        # Ensure valid geometries
+        landslides_gdf = validate_geometry(landslides_gdf)
+
+        # Create buffer around landslide zones for safety (500m)
+        landslide_zones = create_buffer(landslides_gdf, 500)
+
+        # Add severity information if not present
+        if 'severity' not in landslide_zones.columns:
+            landslide_zones['severity'] = 'high'
+
+        # Add hazard type
+        landslide_zones['disaster_type'] = 'landslide'
+
+        # Convert to GeoJSON
+        from backend.core.data_loader import convert_to_geojson
+        geojson = convert_to_geojson(landslide_zones)
+
+        return geojson
+
+    except Exception as e:
+        return {'type': 'FeatureCollection', 'features': []}
+
+
+def compute_cyclone_zones():
+    """
+    Compute cyclone impact zones from loaded cyclone track data.
+
+    Returns:
+        dict: GeoJSON FeatureCollection of cyclone zones
+    """
+    try:
+        from backend.core.data_loader import load_cyclone_layers
+
+        cyclone_data = load_cyclone_layers()
+
+        if cyclone_data is None or (cyclone_data.get('tracks') is None and cyclone_data.get('points') is None):
+            return {'type': 'FeatureCollection', 'features': []}
+
+        # Prioritize tracks over points
+        if cyclone_data.get('tracks') is not None:
+            cyclone_gdf = cyclone_data['tracks']
+        else:
+            cyclone_gdf = cyclone_data['points']
+
+        # Ensure valid geometries
+        cyclone_gdf = validate_geometry(cyclone_gdf)
+
+        # Create buffer around cyclone tracks/points for impact zone (50km)
+        cyclone_zones = create_buffer(cyclone_gdf, 50000)
+
+        # Add severity information based on cyclone properties if available
+        if 'severity' not in cyclone_zones.columns:
+            # Check for wind speed or category fields
+            if 'USA_WIND' in cyclone_zones.columns:
+                # Categorize by wind speed (knots)
+                cyclone_zones['severity'] = cyclone_zones['USA_WIND'].apply(
+                    lambda x: 'critical' if x > 100 else ('high' if x > 64 else 'medium')
+                )
+            else:
+                cyclone_zones['severity'] = 'high'
+
+        # Add hazard type
+        cyclone_zones['disaster_type'] = 'cyclone'
+
+        # Convert to GeoJSON
+        from backend.core.data_loader import convert_to_geojson
+        geojson = convert_to_geojson(cyclone_zones)
+
+        return geojson
+
+    except Exception as e:
+        return {'type': 'FeatureCollection', 'features': []}
+
+
+def compute_flood_zones(rivers_gdf, buffer_distance=1000):
+    """
+    Compute flood hazard zones from river data.
+
+    Args:
+        rivers_gdf (GeoDataFrame): Rivers GeoDataFrame
+        buffer_distance (float): Buffer distance in meters
+
+    Returns:
+        dict: GeoJSON FeatureCollection of flood zones
+    """
+    try:
+        if rivers_gdf is None or len(rivers_gdf) == 0:
+            return {'type': 'FeatureCollection', 'features': []}
+
+        # Ensure valid geometries
+        rivers_gdf = validate_geometry(rivers_gdf)
+
+        # Create buffer around rivers for flood zones
+        flood_zones = create_buffer(rivers_gdf, buffer_distance)
+
+        # Add severity information
+        if 'severity' not in flood_zones.columns:
+            flood_zones['severity'] = 'medium'
+
+        # Add hazard type
+        flood_zones['disaster_type'] = 'flood'
+
+        # Convert to GeoJSON
+        from backend.core.data_loader import convert_to_geojson
+        geojson = convert_to_geojson(flood_zones)
+
+        return geojson
+
+    except Exception as e:
+        return {'type': 'FeatureCollection', 'features': []}
+
+
+def compute_multi_hazard_zones(hazard_gdfs_list):
+    """
+    Compute combined multi-hazard zones from multiple hazard layers.
+
+    Args:
+        hazard_gdfs_list (list): List of hazard GeoDataFrames
+
+    Returns:
+        GeoDataFrame: Combined multi-hazard zones
+    """
+    try:
+        valid_gdfs = [gdf for gdf in hazard_gdfs_list if gdf is not None and len(gdf) > 0]
+
+        if len(valid_gdfs) == 0:
+            return gpd.GeoDataFrame()
+
+        # Merge all hazard GeoDataFrames
+        combined_hazards = gpd.GeoDataFrame(
+            pd.concat(valid_gdfs, ignore_index=True),
+            crs=f"EPSG:{config.DEFAULT_SRID}"
+        )
+
+        # Dissolve overlapping polygons
+        combined_hazards = combined_hazards.dissolve(by='disaster_type', aggfunc='first')
+        combined_hazards = combined_hazards.reset_index()
+
+        return combined_hazards
+
+    except Exception as e:
+        return gpd.GeoDataFrame()
+
+
+def identify_affected_buildings(buildings_gdf, hazard_zones_gdf):
+    """
+    Identify buildings affected by disaster zones.
+
+    Args:
+        buildings_gdf (GeoDataFrame): Buildings layer
+        hazard_zones_gdf (GeoDataFrame): Hazard zones
+
+    Returns:
+        GeoDataFrame: Affected buildings with hazard information
+    """
+    try:
+        if buildings_gdf is None or hazard_zones_gdf is None:
+            return gpd.GeoDataFrame()
+
+        # Ensure same CRS
+        if buildings_gdf.crs != hazard_zones_gdf.crs:
+            hazard_zones_gdf = hazard_zones_gdf.to_crs(buildings_gdf.crs)
+
+        # Spatial join to find affected buildings
+        affected_buildings = gpd.sjoin(
+            buildings_gdf,
+            hazard_zones_gdf,
+            how='inner',
+            predicate='within'
+        )
+
+        return affected_buildings
+
+    except Exception as e:
+        return gpd.GeoDataFrame()
+
+
+def find_safe_amenities(amenities_gdf, hazard_zones_gdf, buffer_distance=5000):
+    """
+    Find safe amenities (hospitals, shelters) outside hazard zones.
+
+    Args:
+        amenities_gdf (GeoDataFrame): Amenities (hospitals, shelters)
+        hazard_zones_gdf (GeoDataFrame): Hazard zones
+        buffer_distance (float): Safety buffer in meters
+
+    Returns:
+        GeoDataFrame: Safe amenities
+    """
+    try:
+        if amenities_gdf is None or len(amenities_gdf) == 0:
+            return amenities_gdf
+
+        if hazard_zones_gdf is None or len(hazard_zones_gdf) == 0:
+            return amenities_gdf
+
+        # Ensure same CRS
+        if amenities_gdf.crs != hazard_zones_gdf.crs:
+            hazard_zones_gdf = hazard_zones_gdf.to_crs(amenities_gdf.crs)
+
+        # Create buffer around hazard zones
+        buffered_hazards = create_buffer(hazard_zones_gdf, buffer_distance)
+
+        # Find amenities outside buffered hazard zones
+        safe_amenities = amenities_gdf.copy()
+
+        # Spatial difference - keep only amenities not within hazard zones
+        for idx, amenity in safe_amenities.iterrows():
+            is_safe = True
+            for _, hazard in buffered_hazards.iterrows():
+                if amenity.geometry.within(hazard.geometry):
+                    is_safe = False
+                    break
+
+            if not is_safe:
+                safe_amenities = safe_amenities.drop(idx)
+
+        return safe_amenities
+
+    except Exception as e:
+        return amenities_gdf
+
+
 # TODO: Add more spatial analysis functions:
 # - nearest_neighbor_analysis()
 # - density_analysis()

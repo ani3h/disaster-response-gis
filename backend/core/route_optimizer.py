@@ -179,7 +179,7 @@ def compute_safe_route(roads_gdf, start_point, end_point, disaster_zones_gdf, bu
     try:
 
         # Filter out roads that intersect disaster zones
-        if len(disaster_zones_gdf) > 0:
+        if disaster_zones_gdf is not None and len(disaster_zones_gdf) > 0:
             # Create buffer around disaster zones
             from backend.core.spatial_analysis import create_buffer
 
@@ -198,7 +198,8 @@ def compute_safe_route(roads_gdf, start_point, end_point, disaster_zones_gdf, bu
             safe_roads = roads_gdf
 
         # Also filter out blocked roads
-        safe_roads = safe_roads[safe_roads.get('is_blocked', False) == False]
+        if 'is_blocked' in safe_roads.columns:
+            safe_roads = safe_roads[safe_roads['is_blocked'] == False]
 
         if len(safe_roads) == 0:
             return None
@@ -214,7 +215,113 @@ def compute_safe_route(roads_gdf, start_point, end_point, disaster_zones_gdf, bu
 
         if route:
             route['safety_status'] = 'safe'
-            route['avoided_disaster_zones'] = len(disaster_zones_gdf)
+            route['avoided_disaster_zones'] = len(disaster_zones_gdf) if disaster_zones_gdf is not None else 0
+
+        return route
+
+    except Exception as e:
+        return None
+
+
+def compute_safe_route_to_amenity(roads_gdf, start_point, amenities_gdf, hazard_zones_gdf, buffer_distance=1000):
+    """
+    Compute a safe evacuation route from start point to nearest safe amenity (hospital/shelter).
+
+    Args:
+        roads_gdf (GeoDataFrame): Road network
+        start_point (tuple): (lon, lat) start coordinates
+        amenities_gdf (GeoDataFrame): Amenities (hospitals, shelters, buildings)
+        hazard_zones_gdf (GeoDataFrame): All hazard zones (flood, landslide, cyclone)
+        buffer_distance (float): Safety buffer around hazard zones in meters
+
+    Returns:
+        dict: Safe route information to nearest safe amenity
+    """
+    try:
+        from backend.core.spatial_analysis import find_safe_amenities
+
+        # Find safe amenities outside hazard zones
+        safe_amenities = find_safe_amenities(amenities_gdf, hazard_zones_gdf, buffer_distance)
+
+        if safe_amenities is None or len(safe_amenities) == 0:
+            return None
+
+        # Find nearest safe amenity from start point
+        start_pt = Point(start_point)
+        safe_amenities['distance'] = safe_amenities.geometry.apply(lambda x: start_pt.distance(x))
+        nearest_amenity = safe_amenities.loc[safe_amenities['distance'].idxmin()]
+
+        # Get amenity coordinates
+        amenity_coords = (nearest_amenity.geometry.x, nearest_amenity.geometry.y)
+
+        # Compute safe route to amenity
+        route = compute_safe_route(roads_gdf, start_point, amenity_coords, hazard_zones_gdf, buffer_distance)
+
+        if route:
+            route['destination_type'] = 'safe_amenity'
+            route['destination_name'] = nearest_amenity.get('name', 'Safe Location')
+            route['amenity_type'] = nearest_amenity.get('amenity', 'unknown')
+
+        return route
+
+    except Exception as e:
+        return None
+
+
+def compute_multi_hazard_safe_route(roads_gdf, start_point, end_point, hazard_types=['flood', 'landslide', 'cyclone'], buffer_distance=1000):
+    """
+    Compute a safe route that avoids multiple hazard types.
+
+    Args:
+        roads_gdf (GeoDataFrame): Road network
+        start_point (tuple): (lon, lat) start coordinates
+        end_point (tuple): (lon, lat) end coordinates
+        hazard_types (list): List of hazard types to avoid
+        buffer_distance (float): Safety buffer around hazard zones in meters
+
+    Returns:
+        dict: Safe route information
+    """
+    try:
+        from backend.core.data_loader import load_landslide_layers, load_cyclone_layers, load_rivers
+        from backend.core.spatial_analysis import compute_multi_hazard_zones
+
+        hazard_gdfs = []
+
+        # Load hazard layers based on requested types
+        if 'landslide' in hazard_types:
+            landslides = load_landslide_layers()
+            if landslides is not None and len(landslides) > 0:
+                hazard_gdfs.append(landslides)
+
+        if 'cyclone' in hazard_types:
+            cyclone_data = load_cyclone_layers()
+            if cyclone_data.get('tracks') is not None:
+                hazard_gdfs.append(cyclone_data['tracks'])
+            elif cyclone_data.get('points') is not None:
+                hazard_gdfs.append(cyclone_data['points'])
+
+        if 'flood' in hazard_types:
+            rivers = load_rivers()
+            if rivers is not None and len(rivers) > 0:
+                # Create flood zones from rivers
+                from backend.core.spatial_analysis import create_buffer
+                flood_zones = create_buffer(rivers, 1000)
+                flood_zones['disaster_type'] = 'flood'
+                hazard_gdfs.append(flood_zones)
+
+        if len(hazard_gdfs) == 0:
+            # No hazards, compute regular route
+            return compute_shortest_path(build_road_network(roads_gdf), start_point, end_point)
+
+        # Combine all hazard zones
+        combined_hazards = compute_multi_hazard_zones(hazard_gdfs)
+
+        # Compute safe route avoiding all hazards
+        route = compute_safe_route(roads_gdf, start_point, end_point, combined_hazards, buffer_distance)
+
+        if route:
+            route['avoided_hazard_types'] = hazard_types
 
         return route
 

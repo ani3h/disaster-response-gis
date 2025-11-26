@@ -219,6 +219,124 @@ def analyze_disaster_impact():
         }), 500
 
 
+@disaster_bp.route('/landslides', methods=['GET'])
+def get_landslide_zones():
+    """
+    Get landslide hazard zones as GeoJSON.
+
+    Returns:
+        JSON: GeoJSON FeatureCollection of landslide zones
+    """
+    try:
+        from backend.core.spatial_analysis import compute_landslide_zones
+
+        geojson = compute_landslide_zones()
+
+        return jsonify({
+            'status': 'success',
+            'data': geojson
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@disaster_bp.route('/cyclone', methods=['GET'])
+def get_cyclone_zones():
+    """
+    Get cyclone impact zones as GeoJSON.
+
+    Returns:
+        JSON: GeoJSON FeatureCollection of cyclone zones
+    """
+    try:
+        from backend.core.spatial_analysis import compute_cyclone_zones
+
+        geojson = compute_cyclone_zones()
+
+        return jsonify({
+            'status': 'success',
+            'data': geojson
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@disaster_bp.route('/flood', methods=['GET'])
+def get_flood_zones():
+    """
+    Get flood hazard zones as GeoJSON.
+
+    Returns:
+        JSON: GeoJSON FeatureCollection of flood zones
+    """
+    try:
+        from backend.core.spatial_analysis import compute_flood_zones
+        from backend.core.data_loader import load_rivers
+
+        rivers_gdf = load_rivers()
+        geojson = compute_flood_zones(rivers_gdf, buffer_distance=1000)
+
+        return jsonify({
+            'status': 'success',
+            'data': geojson
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@disaster_bp.route('/all-hazards', methods=['GET'])
+def get_all_hazards():
+    """
+    Get all hazard zones (landslide, cyclone, flood) as GeoJSON.
+
+    Returns:
+        JSON: GeoJSON FeatureCollection of all hazard zones
+    """
+    try:
+        from backend.core.spatial_analysis import compute_landslide_zones, compute_cyclone_zones, compute_flood_zones
+        from backend.core.data_loader import load_rivers
+
+        # Load all hazard zones
+        landslides = compute_landslide_zones()
+        cyclones = compute_cyclone_zones()
+        rivers_gdf = load_rivers()
+        floods = compute_flood_zones(rivers_gdf, buffer_distance=1000)
+
+        # Combine all features
+        all_features = []
+        all_features.extend(landslides.get('features', []))
+        all_features.extend(cyclones.get('features', []))
+        all_features.extend(floods.get('features', []))
+
+        combined_geojson = {
+            'type': 'FeatureCollection',
+            'features': all_features
+        }
+
+        return jsonify({
+            'status': 'success',
+            'data': combined_geojson
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
 # TODO: Add more disaster API endpoints:
 # - POST /report - Report new disaster
 # - PUT /zones/<id> - Update disaster zone

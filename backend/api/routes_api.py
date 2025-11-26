@@ -19,25 +19,29 @@ def calculate_safe_route():
     Request Body:
         {
             "start": {"lat": float, "lon": float},
-            "end": {"lat": float, "lon": float},
-            "avoid_disaster_zones": bool (optional, default: true)
+            "end": {"lat": float, "lon": float} (optional if route_to_safety is true),
+            "avoid_disaster_zones": bool (optional, default: true),
+            "hazard_types": list (optional, default: ["flood", "landslide", "cyclone"]),
+            "route_to_safety": bool (optional, default: false)
         }
 
     Returns:
         JSON: Route information with geometry and distance
     """
     try:
+        from backend.core.route_optimizer import compute_multi_hazard_safe_route, compute_safe_route_to_amenity
+        from backend.core.data_loader import load_roads, load_hospitals, load_shelters
+
         data = request.get_json()
 
         # Validate request
-        if not data or 'start' not in data or 'end' not in data:
+        if not data or 'start' not in data:
             return jsonify({
                 'status': 'error',
-                'message': 'Missing start or end coordinates'
+                'message': 'Missing start coordinates'
             }), 400
 
         start = data['start']
-        end = data['end']
 
         if 'lat' not in start or 'lon' not in start:
             return jsonify({
@@ -45,37 +49,98 @@ def calculate_safe_route():
                 'message': 'Invalid start coordinates'
             }), 400
 
-        if 'lat' not in end or 'lon' not in end:
+        avoid_disasters = data.get('avoid_disaster_zones', True)
+        hazard_types = data.get('hazard_types', ['flood', 'landslide', 'cyclone'])
+        route_to_safety = data.get('route_to_safety', False)
+
+        # Load roads
+        roads_gdf = load_roads()
+
+        if roads_gdf is None or len(roads_gdf) == 0:
             return jsonify({
                 'status': 'error',
-                'message': 'Invalid end coordinates'
-            }), 400
+                'message': 'No road data available'
+            }), 500
 
-        avoid_disasters = data.get('avoid_disaster_zones', True)
+        # Route to nearest safe amenity or specific destination
+        if route_to_safety:
+            # Load amenities
+            hospitals_gdf = load_hospitals()
+            shelters_gdf = load_shelters()
 
-        # TODO: Use route_optimizer module to compute safe route
-        # from backend.core.route_optimizer import compute_safe_route
+            # Combine amenities
+            import geopandas as gpd
+            import pandas as pd
+            amenities = []
+            if hospitals_gdf is not None and len(hospitals_gdf) > 0:
+                amenities.append(hospitals_gdf)
+            if shelters_gdf is not None and len(shelters_gdf) > 0:
+                amenities.append(shelters_gdf)
 
-        # Placeholder response
-        route = {
-            'path': [
-                [start['lon'], start['lat']],
-                [start['lon'] + 0.01, start['lat'] + 0.01],
-                [end['lon'], end['lat']]
-            ],
-            'geometry': {
-                'type': 'LineString',
-                'coordinates': [
-                    [start['lon'], start['lat']],
-                    [start['lon'] + 0.01, start['lat'] + 0.01],
-                    [end['lon'], end['lat']]
-                ]
-            },
-            'total_distance_km': 15.3,
-            'estimated_time_minutes': 25,
-            'safety_score': 85.5,
-            'avoids_disaster_zones': avoid_disasters
-        }
+            if len(amenities) == 0:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'No safe amenities available'
+                }), 500
+
+            amenities_gdf = gpd.GeoDataFrame(pd.concat(amenities, ignore_index=True))
+
+            # Compute route to nearest safe amenity
+            from backend.core.data_loader import load_landslide_layers, load_cyclone_layers, load_rivers
+            from backend.core.spatial_analysis import compute_multi_hazard_zones
+
+            hazard_gdfs = []
+            if 'landslide' in hazard_types:
+                landslides = load_landslide_layers()
+                if landslides is not None and len(landslides) > 0:
+                    hazard_gdfs.append(landslides)
+
+            if 'cyclone' in hazard_types:
+                cyclone_data = load_cyclone_layers()
+                if cyclone_data.get('tracks') is not None:
+                    hazard_gdfs.append(cyclone_data['tracks'])
+
+            if 'flood' in hazard_types:
+                rivers = load_rivers()
+                if rivers is not None and len(rivers) > 0:
+                    from backend.core.spatial_analysis import create_buffer
+                    flood_zones = create_buffer(rivers, 1000)
+                    flood_zones['disaster_type'] = 'flood'
+                    hazard_gdfs.append(flood_zones)
+
+            combined_hazards = compute_multi_hazard_zones(hazard_gdfs) if len(hazard_gdfs) > 0 else None
+
+            start_point = (start['lon'], start['lat'])
+            route = compute_safe_route_to_amenity(roads_gdf, start_point, amenities_gdf, combined_hazards)
+
+        else:
+            # Route to specific destination
+            end = data.get('end')
+            if not end or 'lat' not in end or 'lon' not in end:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Missing or invalid end coordinates'
+                }), 400
+
+            start_point = (start['lon'], start['lat'])
+            end_point = (end['lon'], end['lat'])
+
+            if avoid_disasters:
+                route = compute_multi_hazard_safe_route(roads_gdf, start_point, end_point, hazard_types)
+            else:
+                from backend.core.route_optimizer import build_road_network, compute_shortest_path
+                graph = build_road_network(roads_gdf)
+                route = compute_shortest_path(graph, start_point, end_point)
+
+        if route is None:
+            return jsonify({
+                'status': 'error',
+                'message': 'No route found. Try different start/end points.'
+            }), 404
+
+        # Add estimated time (rough estimate: 40 km/h average speed)
+        if 'estimated_time_minutes' not in route:
+            route['estimated_time_minutes'] = int((route.get('total_distance_km', 0) / 40) * 60)
 
         return jsonify({
             'status': 'success',
