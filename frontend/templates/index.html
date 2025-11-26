@@ -28,12 +28,49 @@
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-section">
+                <h3>Disaster Type</h3>
+                <div class="disaster-selector">
+                    <select id="disasterSelector" class="disaster-dropdown" style="width: 100%; padding: 8px; margin-bottom: 10px; border-radius: 4px;">
+                        <option value="all">All Hazards</option>
+                        <option value="flood">Flood</option>
+                        <option value="landslide">Landslides</option>
+                        <option value="cyclone">Cyclone</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
                 <h3>Map Layers</h3>
                 <div class="layer-controls">
                     <label class="layer-checkbox">
-                        <input type="checkbox" id="layer-disaster-zones" checked>
+                        <input type="checkbox" id="layer-boundaries">
+                        <span class="layer-icon" style="background-color: #999999;"></span>
+                        Admin Boundary
+                    </label>
+                    <label class="layer-checkbox">
+                        <input type="checkbox" id="layer-buildings">
+                        <span class="layer-icon" style="background-color: #8B4513;"></span>
+                        Buildings
+                    </label>
+                    <label class="layer-checkbox">
+                        <input type="checkbox" id="layer-coastline">
+                        <span class="layer-icon" style="background-color: #1E90FF;"></span>
+                        Coastline
+                    </label>
+                    <label class="layer-checkbox">
+                        <input type="checkbox" id="layer-landslides">
+                        <span class="layer-icon" style="background-color: #D2691E;"></span>
+                        Landslides
+                    </label>
+                    <label class="layer-checkbox">
+                        <input type="checkbox" id="layer-cyclone">
+                        <span class="layer-icon" style="background-color: #4169E1;"></span>
+                        Cyclone
+                    </label>
+                    <label class="layer-checkbox">
+                        <input type="checkbox" id="layer-affected-zones">
                         <span class="layer-icon" style="background-color: #ff0000;"></span>
-                        Disaster Zones
+                        Affected Zones
                     </label>
                     <label class="layer-checkbox">
                         <input type="checkbox" id="layer-shelters" checked>
@@ -50,11 +87,6 @@
                         <span class="layer-icon" style="background-color: #333333;"></span>
                         Roads
                     </label>
-                    <label class="layer-checkbox">
-                        <input type="checkbox" id="layer-boundaries">
-                        <span class="layer-icon" style="background-color: #999999;"></span>
-                        Boundaries
-                    </label>
                 </div>
             </div>
 
@@ -63,12 +95,17 @@
                 <div class="route-controls">
                     <input type="text" id="route-start" placeholder="Start location..." class="route-input">
                     <input type="text" id="route-end" placeholder="Destination..." class="route-input">
+                    <label class="layer-checkbox" style="margin: 10px 0;">
+                        <input type="checkbox" id="route-to-safety">
+                        Route to Nearest Safe Location
+                    </label>
                     <button id="calculate-route" class="btn btn-primary">Calculate Safe Route</button>
                     <button id="clear-route" class="btn btn-secondary">Clear Route</button>
                 </div>
                 <div id="route-info" class="route-info" style="display: none;">
                     <p><strong>Distance:</strong> <span id="route-distance">-</span> km</p>
-                    <p><strong>Safety Score:</strong> <span id="route-safety">-</span>/100</p>
+                    <p><strong>Est. Time:</strong> <span id="route-time">-</span> min</p>
+                    <p><strong>Destination:</strong> <span id="route-destination">-</span></p>
                 </div>
             </div>
 

@@ -13,8 +13,8 @@ let currentRoute = null;
  * Initialize the Leaflet map
  */
 function initMap() {
-    // Create map centered on India (can be changed via config)
-    map = L.map('map').setView([20.5937, 78.9629], 5);
+    // Create map centered on Kerala, India
+    map = L.map('map').setView([10.8505, 76.2711], 8);
 
     // Add base tile layer (OpenStreetMap)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -25,7 +25,7 @@ function initMap() {
     // Add scale control
     L.control.scale({ position: 'bottomleft' }).addTo(map);
 
-    console.log('Map initialized successfully');
+    console.log('Map initialized successfully - Centered on Kerala');
 }
 
 /**
@@ -145,7 +145,6 @@ async function refreshMapData() {
 
     try {
         // Reload all layers
-        await loadDisasterZones();
         await loadShelters();
         await loadHospitals();
 
@@ -248,6 +247,47 @@ function toggleFullscreen() {
 }
 
 /**
+ * Handle disaster type selection
+ */
+async function handleDisasterTypeChange(disasterType) {
+    showLoading(true);
+
+    try {
+        // Clear existing disaster layers
+        map.removeLayer(layerGroups.landslides);
+        map.removeLayer(layerGroups.cyclone);
+        map.removeLayer(layerGroups.affectedZones);
+
+        // Uncheck all disaster layer checkboxes
+        document.getElementById('layer-landslides').checked = false;
+        document.getElementById('layer-cyclone').checked = false;
+        document.getElementById('layer-affected-zones').checked = false;
+
+        // Load appropriate disaster layer based on selection
+        if (disasterType === 'landslide') {
+            await loadLandslides();
+            document.getElementById('layer-landslides').checked = true;
+        } else if (disasterType === 'cyclone') {
+            await loadCyclone();
+            document.getElementById('layer-cyclone').checked = true;
+        } else if (disasterType === 'flood') {
+            // For flood, we'll show affected zones filtered for flood
+            await loadAffectedZones();
+            document.getElementById('layer-affected-zones').checked = true;
+        } else if (disasterType === 'all') {
+            await loadAffectedZones();
+            document.getElementById('layer-affected-zones').checked = true;
+        }
+
+        console.log(`Switched to disaster type: ${disasterType}`);
+    } catch (error) {
+        console.error('Error changing disaster type:', error);
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
  * Initialize event listeners
  */
 function initEventListeners() {
@@ -271,6 +311,11 @@ function initEventListeners() {
             const query = e.target.value;
             searchLocation(query);
         }
+    });
+
+    // Disaster type selector
+    document.getElementById('disasterSelector').addEventListener('change', (e) => {
+        handleDisasterTypeChange(e.target.value);
     });
 
     console.log('Event listeners initialized');
@@ -299,7 +344,6 @@ async function initApp() {
 
     try {
         await Promise.all([
-            loadDisasterZones(),
             loadShelters(),
             loadHospitals(),
             updateStatistics(),

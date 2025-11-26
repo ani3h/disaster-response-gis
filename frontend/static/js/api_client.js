@@ -75,6 +75,34 @@ const DisasterAPI = {
             method: 'POST',
             body: JSON.stringify({ disaster_zone_id: disasterZoneId })
         });
+    },
+
+    /**
+     * Get landslide zones
+     */
+    async getLandslides() {
+        return await apiFetch('/disaster/landslides');
+    },
+
+    /**
+     * Get cyclone zones
+     */
+    async getCyclone() {
+        return await apiFetch('/disaster/cyclone');
+    },
+
+    /**
+     * Get flood zones
+     */
+    async getFlood() {
+        return await apiFetch('/disaster/flood');
+    },
+
+    /**
+     * Get all hazards
+     */
+    async getAllHazards() {
+        return await apiFetch('/disaster/all-hazards');
     }
 };
 
@@ -85,14 +113,21 @@ const RoutesAPI = {
     /**
      * Calculate safe route between two points
      */
-    async calculateSafeRoute(startLat, startLon, endLat, endLon) {
+    async calculateSafeRoute(startLat, startLon, endLat, endLon, routeToSafety = false, hazardTypes = ['flood', 'landslide', 'cyclone']) {
+        const body = {
+            start: { lat: startLat, lon: startLon },
+            avoid_disaster_zones: true,
+            hazard_types: hazardTypes,
+            route_to_safety: routeToSafety
+        };
+
+        if (!routeToSafety && endLat !== null && endLon !== null) {
+            body.end = { lat: endLat, lon: endLon };
+        }
+
         return await apiFetch('/routes/safe-route', {
             method: 'POST',
-            body: JSON.stringify({
-                start: { lat: startLat, lon: startLon },
-                end: { lat: endLat, lon: endLon },
-                avoid_disaster_zones: true
-            })
+            body: JSON.stringify(body)
         });
     },
 
@@ -224,6 +259,44 @@ const LayersAPI = {
             method: 'POST',
             body: JSON.stringify({ buffer_distance_meters: bufferDistance })
         });
+    },
+
+    /**
+     * Get buildings layer
+     */
+    async getBuildings(bbox = null) {
+        const url = bbox
+            ? `/layers/buildings?bbox=${bbox.join(',')}`
+            : '/layers/buildings';
+        return await apiFetch(url);
+    },
+
+    /**
+     * Get coastline layer
+     */
+    async getCoastline() {
+        return await apiFetch('/layers/coastline');
+    },
+
+    /**
+     * Get landslides layer
+     */
+    async getLandslides() {
+        return await apiFetch('/layers/landslides');
+    },
+
+    /**
+     * Get cyclone layer
+     */
+    async getCyclone() {
+        return await apiFetch('/layers/cyclone');
+    },
+
+    /**
+     * Get affected zones
+     */
+    async getAffectedZones() {
+        return await apiFetch('/layers/affected-zones');
     }
 };
 

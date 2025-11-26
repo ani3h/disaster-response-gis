@@ -52,6 +52,19 @@ function initRoutingControls() {
         document.getElementById('map').style.cursor = '';
     });
 
+    // Route to safety checkbox
+    document.getElementById('route-to-safety').addEventListener('change', (e) => {
+        const endInput = document.getElementById('route-end');
+        if (e.target.checked) {
+            endInput.disabled = true;
+            endInput.placeholder = 'Auto (nearest safe location)';
+            endInput.value = '';
+        } else {
+            endInput.disabled = false;
+            endInput.placeholder = 'Destination...';
+        }
+    });
+
     console.log('Routing controls initialized');
 }
 
@@ -145,6 +158,7 @@ async function calculateRoute() {
         // Get start and end points
         const startInput = document.getElementById('route-start').value;
         const endInput = document.getElementById('route-end').value;
+        const routeToSafety = document.getElementById('route-to-safety').checked;
 
         // Try to use coordinates if already set
         let start = startCoords;
@@ -159,22 +173,35 @@ async function calculateRoute() {
             }
         }
 
-        if (!end) {
-            end = parseCoordinates(endInput);
+        // Only require end if not routing to safety
+        if (!routeToSafety) {
             if (!end) {
-                alert('Please set a valid end point (click on map or enter coordinates)');
-                return;
+                end = parseCoordinates(endInput);
+                if (!end) {
+                    alert('Please set a valid end point (click on map or enter coordinates)');
+                    return;
+                }
             }
         }
 
         showLoading(true);
 
+        // Get selected disaster type for hazard avoidance
+        const disasterType = document.getElementById('disasterSelector').value;
+        let hazardTypes = ['flood', 'landslide', 'cyclone'];
+
+        if (disasterType !== 'all') {
+            hazardTypes = [disasterType];
+        }
+
         // Calculate route using API
         const response = await RoutesAPI.calculateSafeRoute(
             start.lat,
             start.lon,
-            end.lat,
-            end.lon
+            end ? end.lat : null,
+            end ? end.lon : null,
+            routeToSafety,
+            hazardTypes
         );
 
         if (response.status === 'success') {
@@ -214,19 +241,29 @@ function displayRoute(routeData) {
 
     // Show route info
     document.getElementById('route-info').style.display = 'block';
-    document.getElementById('route-distance').textContent = routeData.total_distance_km;
-    document.getElementById('route-safety').textContent = routeData.safety_score || 'N/A';
+    document.getElementById('route-distance').textContent =
+        (routeData.total_distance_km || 0).toFixed(2);
+    document.getElementById('route-time').textContent =
+        routeData.estimated_time_minutes || 'N/A';
 
-    // Add popup to route
+    // Show destination info if routing to safety
+    const destName = routeData.destination_name || 'Destination';
+    document.getElementById('route-destination').textContent = destName;
+
+    // Add popup to route midpoint
     const midpoint = Math.floor(coordinates.length / 2);
+    const popupText = routeData.destination_name
+        ? `Safe Route to ${routeData.destination_name}`
+        : 'Safe Route';
+
     L.popup()
         .setLatLng(coordinates[midpoint])
         .setContent(`
-            <div class="popup-header">📍 Safe Route</div>
+            <div class="popup-header">📍 ${popupText}</div>
             <div class="popup-content">
-                <p><strong>Distance:</strong> ${routeData.total_distance_km} km</p>
-                <p><strong>Safety Score:</strong> ${routeData.safety_score || 'N/A'}/100</p>
-                ${routeData.estimated_time_minutes ? `<p><strong>Est. Time:</strong> ${routeData.estimated_time_minutes} min</p>` : ''}
+                <p><strong>Distance:</strong> ${(routeData.total_distance_km || 0).toFixed(2)} km</p>
+                <p><strong>Est. Time:</strong> ${routeData.estimated_time_minutes || 'N/A'} min</p>
+                ${routeData.avoided_hazard_types ? `<p><strong>Avoiding:</strong> ${routeData.avoided_hazard_types.join(', ')}</p>` : ''}
             </div>
         `)
         .openOn(map);
@@ -262,6 +299,11 @@ function clearRoute() {
     // Clear input fields
     document.getElementById('route-start').value = '';
     document.getElementById('route-end').value = '';
+
+    // Uncheck route to safety
+    document.getElementById('route-to-safety').checked = false;
+    document.getElementById('route-end').disabled = false;
+    document.getElementById('route-end').placeholder = 'Destination...';
 
     // Hide route info
     document.getElementById('route-info').style.display = 'none';
