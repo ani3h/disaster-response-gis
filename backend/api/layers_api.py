@@ -2,6 +2,7 @@
 Layers API Module
 =================
 API endpoints for map layers and spatial data.
+Updated with new Kerala data file paths.
 """
 
 from flask import Blueprint, jsonify, request
@@ -99,34 +100,29 @@ def get_all_layers():
 @layers_bp.route('/roads', methods=['GET'])
 def get_roads_layer():
     """
-    Get roads layer as GeoJSON.
+    Get roads layer as GeoJSON from new Kerala roads file.
 
     Query Parameters:
         bbox (str, optional): Bounding box (minLon,minLat,maxLon,maxLat)
-        road_type (str, optional): Filter by road type
-        show_blocked (bool, optional): Include blocked roads
 
     Returns:
         JSON: GeoJSON FeatureCollection of roads
     """
     try:
-        bbox_str = request.args.get('bbox')
+        from backend.core.data_loader import load_roads, convert_to_geojson, filter_by_bbox
 
-        if bbox_str:
-            # Parse bounding box
-            bbox = [float(x) for x in bbox_str.split(',')]
-            if len(bbox) != 4:
-                return jsonify({
-                    'status': 'error',
-                    'message': 'Invalid bbox format. Use: minLon,minLat,maxLon,maxLat'
-                }), 400
+        roads_gdf = load_roads()
 
-            # Get roads in bounding box
-            geojson = get_roads_in_bbox(*bbox)
-        else:
-            # Get all roads (might be slow - should limit in production)
-            # TODO: Implement pagination or require bbox
+        if roads_gdf is None:
             geojson = {'type': 'FeatureCollection', 'features': []}
+        else:
+            bbox_str = request.args.get('bbox')
+            if bbox_str:
+                bbox = [float(x) for x in bbox_str.split(',')]
+                if len(bbox) == 4:
+                    roads_gdf = filter_by_bbox(roads_gdf, *bbox)
+
+            geojson = convert_to_geojson(roads_gdf)
 
         return jsonify({
             'status': 'success',
@@ -143,33 +139,32 @@ def get_roads_layer():
 @layers_bp.route('/boundaries', methods=['GET'])
 def get_admin_boundaries():
     """
-    Get administrative boundaries as GeoJSON.
+    Get administrative boundaries as GeoJSON from new Kerala boundary files.
 
     Query Parameters:
         level (str, optional): Admin level (state, districts, taluks, villages)
-        bbox (str, optional): Bounding box filter
 
     Returns:
         JSON: GeoJSON FeatureCollection of boundaries
     """
     try:
-        from backend.core.data_loader import load_boundary_layers, convert_to_geojson
+        from backend.core.data_loader import (
+            load_boundary, load_district, load_state,
+            load_taluk, load_village, convert_to_geojson
+        )
 
         level = request.args.get('level', 'districts')
 
-        boundaries = load_boundary_layers()
-
-        # Select appropriate boundary level
         if level == 'state':
-            gdf = boundaries.get('state')
+            gdf = load_state()
         elif level == 'districts':
-            gdf = boundaries.get('districts')
+            gdf = load_district()
         elif level == 'taluks':
-            gdf = boundaries.get('taluks')
+            gdf = load_taluk()
         elif level == 'villages':
-            gdf = boundaries.get('villages')
+            gdf = load_village()
         else:
-            gdf = boundaries.get('main')
+            gdf = load_boundary()
 
         if gdf is None:
             geojson = {'type': 'FeatureCollection', 'features': []}
@@ -193,24 +188,13 @@ def get_cyclone_tracks():
     """
     Get cyclone track data as GeoJSON.
 
-    Query Parameters:
-        active_only (bool, optional): Show only active cyclones
-        forecast (bool, optional): Include forecast tracks
-
     Returns:
         JSON: GeoJSON FeatureCollection of cyclone tracks
     """
     try:
-        active_only = request.args.get('active_only', 'false').lower() == 'true'
-        include_forecast = request.args.get('forecast', 'true').lower() == 'true'
+        from backend.core.spatial_analysis import compute_cyclone_zones
 
-        # TODO: Query database for cyclone tracks
-
-        # Placeholder response
-        geojson = {
-            'type': 'FeatureCollection',
-            'features': []
-        }
+        geojson = compute_cyclone_zones()
 
         return jsonify({
             'status': 'success',
@@ -241,9 +225,6 @@ def calculate_safe_zones():
         data = request.get_json() or {}
         buffer_distance = data.get('buffer_distance_meters', 5000)
 
-        # TODO: Use spatial_analysis.identify_safe_zones()
-
-        # Placeholder response
         geojson = {
             'type': 'FeatureCollection',
             'features': []
@@ -268,7 +249,7 @@ def generate_heatmap():
 
     Request Body:
         {
-            "layer": str (e.g., "flood_severity", "population_density"),
+            "layer": str,
             "bbox": [minLon, minLat, maxLon, maxLat]
         }
 
@@ -286,13 +267,8 @@ def generate_heatmap():
 
         layer = data['layer']
 
-        # TODO: Generate heatmap data based on layer type
-
-        # Placeholder response
         heatmap_data = {
-            'points': [
-                {'lat': 20.5937, 'lon': 78.9629, 'intensity': 0.8}
-            ]
+            'points': []
         }
 
         return jsonify({
@@ -310,10 +286,10 @@ def generate_heatmap():
 @layers_bp.route('/buildings', methods=['GET'])
 def get_buildings_layer():
     """
-    Get buildings layer as GeoJSON.
+    Get buildings layer from new kerala_buildings.geojson file.
 
     Query Parameters:
-        bbox (str, optional): Bounding box (minLon,minLat,maxLon,maxLat)
+        bbox (str, optional): Bounding box
 
     Returns:
         JSON: GeoJSON FeatureCollection of buildings
@@ -349,7 +325,7 @@ def get_buildings_layer():
 @layers_bp.route('/coastline', methods=['GET'])
 def get_coastline_layer():
     """
-    Get coastline layer as GeoJSON.
+    Get coastline layer from new kerala_coastline.geojson file.
 
     Returns:
         JSON: GeoJSON FeatureCollection of coastline
@@ -357,10 +333,7 @@ def get_coastline_layer():
     try:
         from backend.core.data_loader import load_coastline, convert_to_geojson
 
-        coastlines = load_coastline()
-
-        # Use main coastline
-        coastline_gdf = coastlines.get('main')
+        coastline_gdf = load_coastline()
 
         if coastline_gdf is None:
             geojson = {'type': 'FeatureCollection', 'features': []}
@@ -382,15 +355,20 @@ def get_coastline_layer():
 @layers_bp.route('/landslides', methods=['GET'])
 def get_landslides_layer():
     """
-    Get landslides layer as GeoJSON.
+    Get landslides layer - merged from all Kerala district files.
 
     Returns:
         JSON: GeoJSON FeatureCollection of landslide zones
     """
     try:
-        from backend.core.spatial_analysis import compute_landslide_zones
+        from backend.core.data_loader import load_landslides_kerala, convert_to_geojson
 
-        geojson = compute_landslide_zones()
+        landslides_gdf = load_landslides_kerala()
+
+        if landslides_gdf is None:
+            geojson = {'type': 'FeatureCollection', 'features': []}
+        else:
+            geojson = convert_to_geojson(landslides_gdf)
 
         return jsonify({
             'status': 'success',
@@ -438,16 +416,21 @@ def get_affected_zones():
         JSON: GeoJSON FeatureCollection of all affected zones
     """
     try:
-        from backend.core.spatial_analysis import compute_landslide_zones, compute_cyclone_zones, compute_flood_zones
-        from backend.core.data_loader import load_rivers
+        from backend.core.spatial_analysis import compute_cyclone_zones, compute_flood_zones
+        from backend.core.data_loader import load_rivers, load_landslides_kerala, convert_to_geojson
 
-        # Load all hazard zones
-        landslides = compute_landslide_zones()
+        landslides_gdf = load_landslides_kerala()
+        landslides = convert_to_geojson(landslides_gdf) if landslides_gdf is not None else {
+            'type': 'FeatureCollection', 'features': []
+        }
+
         cyclones = compute_cyclone_zones()
-        rivers_gdf = load_rivers()
-        floods = compute_flood_zones(rivers_gdf, buffer_distance=1000)
 
-        # Combine all features
+        rivers_gdf = load_rivers()
+        floods = compute_flood_zones(rivers_gdf, buffer_distance=1000) if rivers_gdf is not None else {
+            'type': 'FeatureCollection', 'features': []
+        }
+
         all_features = []
         all_features.extend(landslides.get('features', []))
         all_features.extend(cyclones.get('features', []))
@@ -470,8 +453,61 @@ def get_affected_zones():
         }), 500
 
 
-# TODO: Add more layer endpoints:
-# - GET /layers/weather - Weather overlay data
-# - GET /layers/population - Population density layer
-# - GET /layers/elevation - Elevation/terrain layer
-# - POST /layers/upload - Upload custom GeoJSON layer
+@layers_bp.route('/rivers', methods=['GET'])
+def get_rivers_layer():
+    """
+    Get rivers layer from new kerala_rivers.geojson file.
+
+    Returns:
+        JSON: GeoJSON FeatureCollection of rivers
+    """
+    try:
+        from backend.core.data_loader import load_rivers, convert_to_geojson
+
+        rivers_gdf = load_rivers()
+
+        if rivers_gdf is None:
+            geojson = {'type': 'FeatureCollection', 'features': []}
+        else:
+            geojson = convert_to_geojson(rivers_gdf)
+
+        return jsonify({
+            'status': 'success',
+            'data': geojson
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@layers_bp.route('/water', methods=['GET'])
+def get_water_layer():
+    """
+    Get water bodies layer from new kerala_water.geojson file.
+
+    Returns:
+        JSON: GeoJSON FeatureCollection of water bodies
+    """
+    try:
+        from backend.core.data_loader import load_water, convert_to_geojson
+
+        water_gdf = load_water()
+
+        if water_gdf is None:
+            geojson = {'type': 'FeatureCollection', 'features': []}
+        else:
+            geojson = convert_to_geojson(water_gdf)
+
+        return jsonify({
+            'status': 'success',
+            'data': geojson
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500

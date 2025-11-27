@@ -2,6 +2,7 @@
  * API Client Module
  * =================
  * Handles all API requests to the backend.
+ * UPDATED: Removed roads layer references, added live Ambee disaster endpoints
  */
 
 const API_BASE_URL = window.location.origin + '/api';
@@ -78,7 +79,7 @@ const DisasterAPI = {
     },
 
     /**
-     * Get landslide zones
+     * Get landslide zones (with Ambee fallback logic)
      */
     async getLandslides() {
         return await apiFetch('/disaster/landslides');
@@ -103,6 +104,36 @@ const DisasterAPI = {
      */
     async getAllHazards() {
         return await apiFetch('/disaster/all-hazards');
+    },
+
+    /**
+     * Get live flood alerts from Ambee API
+     */
+    async getLiveFlood() {
+        return await apiFetch('/disaster/live/flood');
+    },
+
+    /**
+     * Get live cyclone alerts from Ambee API
+     */
+    async getLiveCyclone() {
+        return await apiFetch('/disaster/live/cyclone');
+    },
+
+    /**
+     * Get live landslide alerts from Ambee API
+     */
+    async getLiveLandslide() {
+        return await apiFetch('/disaster/live/landslide');
+    },
+
+    /**
+     * Force refresh all live disaster data
+     */
+    async refreshLiveData() {
+        return await apiFetch('/disaster/live/refresh', {
+            method: 'POST'
+        });
     }
 };
 
@@ -225,16 +256,6 @@ const LayersAPI = {
     },
 
     /**
-     * Get roads layer
-     */
-    async getRoads(bbox = null) {
-        const url = bbox
-            ? `/layers/roads?bbox=${bbox.join(',')}`
-            : '/layers/roads';
-        return await apiFetch(url);
-    },
-
-    /**
      * Get admin boundaries
      */
     async getBoundaries(level = null) {
@@ -279,7 +300,7 @@ const LayersAPI = {
     },
 
     /**
-     * Get landslides layer
+     * Get landslides layer (with Ambee fallback)
      */
     async getLandslides() {
         return await apiFetch('/layers/landslides');
@@ -297,6 +318,20 @@ const LayersAPI = {
      */
     async getAffectedZones() {
         return await apiFetch('/layers/affected-zones');
+    },
+
+    /**
+     * Get rivers layer
+     */
+    async getRivers() {
+        return await apiFetch('/layers/rivers');
+    },
+
+    /**
+     * Get water bodies layer
+     */
+    async getWater() {
+        return await apiFetch('/layers/water');
     }
 };
 

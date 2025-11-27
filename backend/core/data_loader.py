@@ -3,6 +3,7 @@ Data Loader Module
 ==================
 Functions to load GeoJSON, Shapefiles, and PostGIS layers using GeoPandas.
 Handles data import, validation, and transformation.
+Updated to support new Kerala processed data directory structure.
 """
 
 import geopandas as gpd
@@ -11,7 +12,6 @@ import pandas as pd
 import json
 from pathlib import Path
 import config
-
 
 
 def load_geojson(file_path):
@@ -36,6 +36,7 @@ def load_geojson(file_path):
         return gdf
 
     except Exception as e:
+        print(f'Error loading GeoJSON from {file_path}: {e}')
         return None
 
 
@@ -59,6 +60,7 @@ def load_shapefile(file_path):
         return gdf
 
     except Exception as e:
+        print(f'Error loading shapefile from {file_path}: {e}')
         return None
 
 
@@ -86,6 +88,7 @@ def load_from_postgis(table_name, connection_string=None):
         return gdf
 
     except Exception as e:
+        print(f'Error loading from PostGIS table {table_name}: {e}')
         return None
 
 
@@ -113,6 +116,7 @@ def load_from_postgis_query(sql_query, connection_string=None, geom_col='geom'):
         return gdf
 
     except Exception as e:
+        print(f'Error loading from PostGIS query: {e}')
         return None
 
 
@@ -147,6 +151,7 @@ def save_to_postgis(gdf, table_name, if_exists='replace', connection_string=None
         return True
 
     except Exception as e:
+        print(f'Error saving to PostGIS table {table_name}: {e}')
         return False
 
 
@@ -166,6 +171,7 @@ def convert_to_geojson(gdf):
         return geojson
 
     except Exception as e:
+        print(f'Error converting to GeoJSON: {e}')
         return {'type': 'FeatureCollection', 'features': []}
 
 
@@ -182,7 +188,6 @@ def create_points_from_csv(csv_path, lat_col='latitude', lon_col='longitude'):
         GeoDataFrame: Spatial data with point geometries
     """
     try:
-
         # Load CSV
         df = pd.read_csv(csv_path)
 
@@ -190,11 +195,13 @@ def create_points_from_csv(csv_path, lat_col='latitude', lon_col='longitude'):
         geometry = [Point(xy) for xy in zip(df[lon_col], df[lat_col])]
 
         # Create GeoDataFrame
-        gdf = gpd.GeoDataFrame(df, geometry=geometry, crs=f"EPSG:{config.DEFAULT_SRID}")
+        gdf = gpd.GeoDataFrame(df, geometry=geometry,
+                               crs=f"EPSG:{config.DEFAULT_SRID}")
 
         return gdf
 
     except Exception as e:
+        print(f'Error creating points from CSV: {e}')
         return None
 
 
@@ -209,24 +216,30 @@ def validate_geometry(gdf):
         GeoDataFrame: Validated GeoDataFrame
     """
     try:
-
         # Check for invalid geometries
         invalid = ~gdf.geometry.is_valid
         invalid_count = invalid.sum()
 
         if invalid_count > 0:
+            print(
+                f'Found {invalid_count} invalid geometries, attempting to fix...')
 
             # Try to fix invalid geometries
-            gdf.loc[invalid, 'geometry'] = gdf.loc[invalid, 'geometry'].buffer(0)
+            gdf.loc[invalid, 'geometry'] = gdf.loc[invalid,
+                                                   'geometry'].buffer(0)
 
             # Check again
             still_invalid = ~gdf.geometry.is_valid
             if still_invalid.sum() > 0:
+                print(
+                    f'Warning: {still_invalid.sum()} geometries could not be fixed')
             else:
+                print('All geometries fixed successfully')
 
         return gdf
 
     except Exception as e:
+        print(f'Error validating geometry: {e}')
         return gdf
 
 
@@ -248,50 +261,117 @@ def filter_by_bbox(gdf, min_lon, min_lat, max_lon, max_lat):
         return filtered
 
     except Exception as e:
+        print(f'Error filtering by bbox: {e}')
         return gdf
 
 
-def load_boundary_layers():
+# =============================================================================
+# NEW: Kerala-specific Data Loaders (Updated for new directory structure)
+# =============================================================================
+
+def load_boundary():
     """
-    Load Kerala boundary layers from processed data directory.
+    Load Kerala main boundary from processed data directory.
 
     Returns:
-        dict: Dictionary of boundary GeoDataFrames
+        GeoDataFrame: Kerala boundary
     """
     try:
         base_path = Path(config.PROCESSED_DATA_DIR)
+        boundary_file = base_path / "kerala_boundary.geojson"
 
-        boundaries = {}
-
-        # Load main boundary
-        boundary_file = base_path / "kerala_boundary_fixed.geojson"
         if boundary_file.exists():
-            boundaries['main'] = load_geojson(str(boundary_file))
+            return load_geojson(str(boundary_file))
 
-        # Load district boundaries
-        district_file = base_path / "kerala_district_fixed.geojson"
-        if district_file.exists():
-            boundaries['districts'] = load_geojson(str(district_file))
-
-        # Load state boundaries
-        state_file = base_path / "kerala_state_fixed.geojson"
-        if state_file.exists():
-            boundaries['state'] = load_geojson(str(state_file))
-
-        # Load taluk boundaries
-        taluk_file = base_path / "kerala_taluk_fixed.geojson"
-        if taluk_file.exists():
-            boundaries['taluks'] = load_geojson(str(taluk_file))
-
-        # Load village boundaries
-        village_file = base_path / "kerala_village_fixed.geojson"
-        if village_file.exists():
-            boundaries['villages'] = load_geojson(str(village_file))
-
-        return boundaries
+        return None
 
     except Exception as e:
-        return {}
+        print(f'Error loading boundary: {e}')
+        return None
+
+
+def load_district():
+    """
+    Load Kerala district boundaries from processed data directory.
+
+    Returns:
+        GeoDataFrame: District boundaries
+    """
+    try:
+        base_path = Path(config.PROCESSED_DATA_DIR)
+        district_file = base_path / "kerala_district.geojson"
+
+        if district_file.exists():
+            return load_geojson(str(district_file))
+
+        return None
+
+    except Exception as e:
+        print(f'Error loading districts: {e}')
+        return None
+
+
+def load_taluk():
+    """
+    Load Kerala taluk boundaries from processed data directory.
+
+    Returns:
+        GeoDataFrame: Taluk boundaries
+    """
+    try:
+        base_path = Path(config.PROCESSED_DATA_DIR)
+        taluk_file = base_path / "kerala_taluk.geojson"
+
+        if taluk_file.exists():
+            return load_geojson(str(taluk_file))
+
+        return None
+
+    except Exception as e:
+        print(f'Error loading taluks: {e}')
+        return None
+
+
+def load_village():
+    """
+    Load Kerala village boundaries from processed data directory.
+
+    Returns:
+        GeoDataFrame: Village boundaries
+    """
+    try:
+        base_path = Path(config.PROCESSED_DATA_DIR)
+        village_file = base_path / "kerala_village.geojson"
+
+        if village_file.exists():
+            return load_geojson(str(village_file))
+
+        return None
+
+    except Exception as e:
+        print(f'Error loading villages: {e}')
+        return None
+
+
+def load_state():
+    """
+    Load Kerala state boundary from processed data directory.
+
+    Returns:
+        GeoDataFrame: State boundary
+    """
+    try:
+        base_path = Path(config.PROCESSED_DATA_DIR)
+        state_file = base_path / "kerala_state.geojson"
+
+        if state_file.exists():
+            return load_geojson(str(state_file))
+
+        return None
+
+    except Exception as e:
+        print(f'Error loading state: {e}')
+        return None
 
 
 def load_buildings():
@@ -303,7 +383,7 @@ def load_buildings():
     """
     try:
         base_path = Path(config.PROCESSED_DATA_DIR)
-        buildings_file = base_path / "kerala_buildings_fixed.geojson"
+        buildings_file = base_path / "kerala_buildings.geojson"
 
         if buildings_file.exists():
             return load_geojson(str(buildings_file))
@@ -311,145 +391,49 @@ def load_buildings():
         return None
 
     except Exception as e:
+        print(f'Error loading buildings: {e}')
         return None
 
 
 def load_coastline():
     """
-    Load Kerala coastline layers from processed data directory.
+    Load Kerala coastline from processed data directory.
 
     Returns:
-        dict: Dictionary of coastline GeoDataFrames
+        GeoDataFrame: Coastline GeoDataFrame
     """
     try:
         base_path = Path(config.PROCESSED_DATA_DIR)
+        coastline_file = base_path / "kerala_coastline.geojson"
 
-        coastlines = {}
-
-        # Load main coastline
-        coastline_file = base_path / "kerala_coastline_fixed.geojson"
         if coastline_file.exists():
-            coastlines['main'] = load_geojson(str(coastline_file))
+            return load_geojson(str(coastline_file))
 
-        # Load coastline area
-        coastline_area_file = base_path / "kerala_coastline_area_fixed.geojson"
-        if coastline_area_file.exists():
-            coastlines['area'] = load_geojson(str(coastline_area_file))
-
-        # Load coastline lines
-        coastline_lines_file = base_path / "kerala_coastline_lines_fixed.geojson"
-        if coastline_lines_file.exists():
-            coastlines['lines'] = load_geojson(str(coastline_lines_file))
-
-        return coastlines
+        return None
 
     except Exception as e:
-        return {}
-
-
-def load_landslide_layers():
-    """
-    Load all landslide layers from processed data directory and merge them.
-
-    Returns:
-        GeoDataFrame: Merged landslide hazard layer
-    """
-    try:
-        base_path = Path(config.PROCESSED_DATA_DIR) / "Landslides"
-
-        if not base_path.exists():
-            return None
-
-        all_landslides = []
-
-        # Get all landslide shp files (these contain the actual geometries)
-        landslide_files = list(base_path.glob("*_ls_shp.geojson"))
-
-        for file in landslide_files:
-            try:
-                gdf = load_geojson(str(file))
-                if gdf is not None and len(gdf) > 0:
-                    # Add district name from filename
-                    district_name = file.stem.replace('_ls_shp', '')
-                    gdf['district'] = district_name
-                    gdf['hazard_type'] = 'landslide'
-                    all_landslides.append(gdf)
-            except Exception as e:
-                continue
-
-        if len(all_landslides) == 0:
-            return None
-
-        # Merge all landslide GeoDataFrames
-        merged_landslides = gpd.GeoDataFrame(
-            pd.concat(all_landslides, ignore_index=True),
-            crs=f"EPSG:{config.DEFAULT_SRID}"
-        )
-
-        # Ensure consistent CRS
-        if merged_landslides.crs.to_epsg() != config.DEFAULT_SRID:
-            merged_landslides = merged_landslides.to_crs(epsg=config.DEFAULT_SRID)
-
-        return merged_landslides
-
-    except Exception as e:
+        print(f'Error loading coastline: {e}')
         return None
 
 
-def load_cyclone_layers():
+def load_emergency():
     """
-    Load all cyclone layers from processed data directory and merge them.
+    Load Kerala emergency facilities from processed data directory.
 
     Returns:
-        dict: Dictionary containing cyclone tracks (lines) and points
-    """
-    try:
-        base_path = Path(config.PROCESSED_DATA_DIR) / "cyclone"
-
-        if not base_path.exists():
-            return {'tracks': None, 'points': None}
-
-        cyclone_data = {}
-
-        # Load cyclone tracks (lines)
-        tracks_file = base_path / "IBTrACS_since1980_lines_shp.geojson"
-        if tracks_file.exists():
-            tracks_gdf = load_geojson(str(tracks_file))
-            if tracks_gdf is not None:
-                tracks_gdf['hazard_type'] = 'cyclone'
-                cyclone_data['tracks'] = tracks_gdf
-
-        # Load cyclone points
-        points_file = base_path / "IBTrACS_since1980_points_shp.geojson"
-        if points_file.exists():
-            points_gdf = load_geojson(str(points_file))
-            if points_gdf is not None:
-                points_gdf['hazard_type'] = 'cyclone'
-                cyclone_data['points'] = points_gdf
-
-        return cyclone_data
-
-    except Exception as e:
-        return {'tracks': None, 'points': None}
-
-
-def load_roads():
-    """
-    Load Kerala roads layer from processed data directory.
-
-    Returns:
-        GeoDataFrame: Roads GeoDataFrame
+        GeoDataFrame: Emergency facilities GeoDataFrame
     """
     try:
         base_path = Path(config.PROCESSED_DATA_DIR)
-        roads_file = base_path / "kerala_roads_fixed.geojson"
+        emergency_file = base_path / "kerala_emergency.geojson"
 
-        if roads_file.exists():
-            return load_geojson(str(roads_file))
+        if emergency_file.exists():
+            return load_geojson(str(emergency_file))
 
         return None
 
     except Exception as e:
+        print(f'Error loading emergency facilities: {e}')
         return None
 
 
@@ -462,7 +446,7 @@ def load_hospitals():
     """
     try:
         base_path = Path(config.PROCESSED_DATA_DIR)
-        hospitals_file = base_path / "kerala_hospitals_fixed.geojson"
+        hospitals_file = base_path / "kerala_hospitals.geojson"
 
         if hospitals_file.exists():
             return load_geojson(str(hospitals_file))
@@ -470,26 +454,7 @@ def load_hospitals():
         return None
 
     except Exception as e:
-        return None
-
-
-def load_shelters():
-    """
-    Load Kerala emergency shelters layer from processed data directory.
-
-    Returns:
-        GeoDataFrame: Shelters GeoDataFrame
-    """
-    try:
-        base_path = Path(config.PROCESSED_DATA_DIR)
-        shelters_file = base_path / "kerala_shelter_fixed.geojson"
-
-        if shelters_file.exists():
-            return load_geojson(str(shelters_file))
-
-        return None
-
-    except Exception as e:
+        print(f'Error loading hospitals: {e}')
         return None
 
 
@@ -502,7 +467,7 @@ def load_rivers():
     """
     try:
         base_path = Path(config.PROCESSED_DATA_DIR)
-        rivers_file = base_path / "kerala_rivers_fixed.geojson"
+        rivers_file = base_path / "kerala_rivers.geojson"
 
         if rivers_file.exists():
             return load_geojson(str(rivers_file))
@@ -510,10 +475,53 @@ def load_rivers():
         return None
 
     except Exception as e:
+        print(f'Error loading rivers: {e}')
         return None
 
 
-def load_water_bodies():
+def load_roads():
+    """
+    Load Kerala roads layer from processed data directory.
+
+    Returns:
+        GeoDataFrame: Roads GeoDataFrame
+    """
+    try:
+        base_path = Path(config.PROCESSED_DATA_DIR)
+        roads_file = base_path / "kerala_roads.geojson"
+
+        if roads_file.exists():
+            return load_geojson(str(roads_file))
+
+        return None
+
+    except Exception as e:
+        print(f'Error loading roads: {e}')
+        return None
+
+
+def load_shelters():
+    """
+    Load Kerala emergency shelters layer from processed data directory.
+
+    Returns:
+        GeoDataFrame: Shelters GeoDataFrame
+    """
+    try:
+        base_path = Path(config.PROCESSED_DATA_DIR)
+        shelters_file = base_path / "kerala_shelters.geojson"
+
+        if shelters_file.exists():
+            return load_geojson(str(shelters_file))
+
+        return None
+
+    except Exception as e:
+        print(f'Error loading shelters: {e}')
+        return None
+
+
+def load_water():
     """
     Load Kerala water bodies layer from processed data directory.
 
@@ -522,18 +530,126 @@ def load_water_bodies():
     """
     try:
         base_path = Path(config.PROCESSED_DATA_DIR)
-        waters_file = base_path / "kerala_waters_fixed.geojson"
+        water_file = base_path / "kerala_water.geojson"
 
-        if waters_file.exists():
-            return load_geojson(str(waters_file))
+        if water_file.exists():
+            return load_geojson(str(water_file))
 
         return None
 
     except Exception as e:
+        print(f'Error loading water bodies: {e}')
         return None
 
 
-# TODO: Add more data loading functions:
-# - load_from_wfs() - Load from Web Feature Service
-# - load_from_api() - Load from REST API
-# - batch_load_files() - Load multiple files
+def load_landslides_kerala():
+    """
+    Load and merge ALL Kerala landslide GIS district files.
+
+    NEW: Automatically scans the 'Landslides' directory for all *.geojson files.
+
+    Returns:
+        GeoDataFrame: Merged landslide hazard layer for all Kerala districts
+    """
+    try:
+        base_path = Path(config.PROCESSED_DATA_DIR) / "Landslides"
+
+        if not base_path.exists():
+            print(f"Warning: Landslides directory not found at {base_path}")
+            return None
+
+        # Auto-detect ALL .geojson files
+        geojson_files = list(base_path.glob("*.geojson"))
+
+        if len(geojson_files) == 0:
+            print("No .geojson landslide files found in Landslides folder.")
+            return None
+
+        all_landslides = []
+
+        for file_path in geojson_files:
+            try:
+                gdf = load_geojson(str(file_path))
+
+                if gdf is not None and len(gdf) > 0:
+
+                    # Extract district name from filename (anything before _GSI_LS)
+                    district_name = file_path.stem.replace("_GSI_LS", "")
+
+                    gdf["district"] = district_name
+                    gdf["hazard_type"] = "landslide"
+                    gdf["disaster_type"] = "landslide"
+
+                    all_landslides.append(gdf)
+
+                    print(
+                        f"Loaded {len(gdf)} landslide features from {district_name}")
+
+            except Exception as e:
+                print(f"Error loading {file_path.name}: {e}")
+                continue
+
+        if len(all_landslides) == 0:
+            print("No valid landslide layers loaded.")
+            return None
+
+        # Merge all landslide GeoDataFrames
+        print(f"Merging {len(all_landslides)} district landslide layers...")
+        merged_landslides = gpd.GeoDataFrame(
+            pd.concat(all_landslides, ignore_index=True),
+            crs=f"EPSG:{config.DEFAULT_SRID}"
+        )
+
+        # Ensure CRS consistency
+        if merged_landslides.crs is None or merged_landslides.crs.to_epsg() != config.DEFAULT_SRID:
+            merged_landslides = merged_landslides.to_crs(
+                epsg=config.DEFAULT_SRID)
+
+        # Validate geometry
+        merged_landslides = validate_geometry(merged_landslides)
+
+        print(
+            f"Successfully merged {len(merged_landslides)} total landslide features "
+            f"from {len(all_landslides)} files."
+        )
+
+        return merged_landslides
+
+    except Exception as e:
+        print(f"Error loading Kerala landslides: {e}")
+        return None
+
+
+def load_boundary_layers():
+    """
+    Load all Kerala boundary layers from processed data directory.
+
+    Returns:
+        dict: Dictionary of boundary GeoDataFrames
+    """
+    try:
+        boundaries = {}
+
+        # Load all boundary types
+        boundaries['main'] = load_boundary()
+        boundaries['districts'] = load_district()
+        boundaries['state'] = load_state()
+        boundaries['taluks'] = load_taluk()
+        boundaries['villages'] = load_village()
+
+        return boundaries
+
+    except Exception as e:
+        print(f'Error loading boundary layers: {e}')
+        return {}
+
+
+def load_water_bodies():
+    """
+    Load Kerala water bodies layer from processed data directory.
+    Alias for load_water() for backwards compatibility.
+
+    Returns:
+        GeoDataFrame: Water bodies GeoDataFrame
+    """
+    return load_water()

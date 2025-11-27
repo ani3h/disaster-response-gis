@@ -2,6 +2,7 @@
  * Routing Module
  * ==============
  * Handles route calculation and visualization.
+ * UPDATED: Markers persist with zIndexOffset: 1000 to stay above all layers
  */
 
 let routeLayer = null;
@@ -86,13 +87,14 @@ function setRouteStart(lat, lon) {
         map.removeLayer(startMarker);
     }
 
-    // Add new marker
+    // Add new marker with high zIndex to stay above all layers
     startMarker = L.marker([lat, lon], {
         icon: L.divIcon({
             className: 'route-start-marker',
             html: '🔵',
             iconSize: [25, 25]
-        })
+        }),
+        zIndexOffset: 1000
     }).addTo(map);
 
     startMarker.bindPopup('<b>Start</b>').openPopup();
@@ -114,13 +116,14 @@ function setRouteEnd(lat, lon) {
         map.removeLayer(endMarker);
     }
 
-    // Add new marker
+    // Add new marker with high zIndex to stay above all layers
     endMarker = L.marker([lat, lon], {
         icon: L.divIcon({
             className: 'route-end-marker',
             html: '🔴',
             iconSize: [25, 25]
-        })
+        }),
+        zIndexOffset: 1000
     }).addTo(map);
 
     endMarker.bindPopup('<b>Destination</b>').openPopup();
@@ -190,7 +193,7 @@ async function calculateRoute() {
         const disasterType = document.getElementById('disasterSelector').value;
         let hazardTypes = ['flood', 'landslide', 'cyclone'];
 
-        if (disasterType !== 'all') {
+        if (disasterType !== 'all' && disasterType !== 'live-flood' && disasterType !== 'live-cyclone' && disasterType !== 'live-landslide') {
             hazardTypes = [disasterType];
         }
 

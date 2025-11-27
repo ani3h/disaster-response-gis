@@ -2,6 +2,7 @@
  * Map Initialization Module
  * ==========================
  * Initializes the Leaflet map and handles main map interactions.
+ * UPDATED: Removed roads references, supports live Ambee disaster layers
  */
 
 // Global map variable
@@ -41,7 +42,8 @@ function addUserLocation(lat, lon) {
             className: 'user-location-marker',
             html: '📍',
             iconSize: [30, 30]
-        })
+        }),
+        zIndexOffset: 1000
     }).addTo(map);
 
     userMarker.bindPopup('<b>Your Location</b>').openPopup();
@@ -253,15 +255,26 @@ async function handleDisasterTypeChange(disasterType) {
     showLoading(true);
 
     try {
-        // Clear existing disaster layers
+        // Clear existing disaster layers (but NOT route markers!)
         map.removeLayer(layerGroups.landslides);
         map.removeLayer(layerGroups.cyclone);
         map.removeLayer(layerGroups.affectedZones);
+        map.removeLayer(layerGroups.liveFlood);
+        map.removeLayer(layerGroups.liveCyclone);
+        map.removeLayer(layerGroups.liveLandslide);
 
         // Uncheck all disaster layer checkboxes
         document.getElementById('layer-landslides').checked = false;
         document.getElementById('layer-cyclone').checked = false;
         document.getElementById('layer-affected-zones').checked = false;
+
+        // Uncheck live layers if they exist
+        const liveFloodCheckbox = document.getElementById('layer-live-flood');
+        const liveCycloneCheckbox = document.getElementById('layer-live-cyclone');
+        const liveLandslideCheckbox = document.getElementById('layer-live-landslide');
+        if (liveFloodCheckbox) liveFloodCheckbox.checked = false;
+        if (liveCycloneCheckbox) liveCycloneCheckbox.checked = false;
+        if (liveLandslideCheckbox) liveLandslideCheckbox.checked = false;
 
         // Load appropriate disaster layer based on selection
         if (disasterType === 'landslide') {
@@ -271,9 +284,17 @@ async function handleDisasterTypeChange(disasterType) {
             await loadCyclone();
             document.getElementById('layer-cyclone').checked = true;
         } else if (disasterType === 'flood') {
-            // For flood, we'll show affected zones filtered for flood
             await loadAffectedZones();
             document.getElementById('layer-affected-zones').checked = true;
+        } else if (disasterType === 'live-flood') {
+            await loadLiveFlood();
+            if (liveFloodCheckbox) liveFloodCheckbox.checked = true;
+        } else if (disasterType === 'live-cyclone') {
+            await loadLiveCyclone();
+            if (liveCycloneCheckbox) liveCycloneCheckbox.checked = true;
+        } else if (disasterType === 'live-landslide') {
+            await loadLiveLandslide();
+            if (liveLandslideCheckbox) liveLandslideCheckbox.checked = true;
         } else if (disasterType === 'all') {
             await loadAffectedZones();
             document.getElementById('layer-affected-zones').checked = true;

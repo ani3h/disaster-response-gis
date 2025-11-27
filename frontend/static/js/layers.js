@@ -2,6 +2,7 @@
  * Map Layers Module
  * ==================
  * Handles loading and toggling of map layers.
+ * UPDATED: Removed roads layer, fixed layer toggles, added live Ambee layers
  */
 
 // Layer groups
@@ -9,13 +10,15 @@ const layerGroups = {
     disasterZones: L.layerGroup(),
     shelters: L.layerGroup(),
     hospitals: L.layerGroup(),
-    roads: L.layerGroup(),
     boundaries: L.layerGroup(),
     buildings: L.layerGroup(),
     coastline: L.layerGroup(),
     landslides: L.layerGroup(),
     cyclone: L.layerGroup(),
-    affectedZones: L.layerGroup()
+    affectedZones: L.layerGroup(),
+    liveFlood: L.layerGroup(),
+    liveCyclone: L.layerGroup(),
+    liveLandslide: L.layerGroup()
 };
 
 /**
@@ -28,10 +31,8 @@ async function loadDisasterZones() {
         if (response.status === 'success') {
             const geojson = response.data;
 
-            // Clear existing layer
             layerGroups.disasterZones.clearLayers();
 
-            // Add GeoJSON to layer
             L.geoJSON(geojson, {
                 style: {
                     fillColor: '#ff0000',
@@ -56,7 +57,6 @@ async function loadDisasterZones() {
                 }
             }).addTo(layerGroups.disasterZones);
 
-            // Add to map if checkbox is checked
             if (document.getElementById('layer-disaster-zones')?.checked) {
                 layerGroups.disasterZones.addTo(map);
             }
@@ -78,17 +78,14 @@ async function loadShelters() {
         if (response.status === 'success') {
             const geojson = response.data;
 
-            // Clear existing layer
             layerGroups.shelters.clearLayers();
 
-            // Custom shelter icon
             const shelterIcon = L.divIcon({
                 className: 'shelter-marker',
                 html: '🏠',
                 iconSize: [25, 25]
             });
 
-            // Add GeoJSON to layer
             L.geoJSON(geojson, {
                 pointToLayer: (feature, latlng) => {
                     return L.marker(latlng, { icon: shelterIcon });
@@ -116,8 +113,7 @@ async function loadShelters() {
                 }
             }).addTo(layerGroups.shelters);
 
-            // Add to map if checkbox is checked
-            if (document.getElementById('layer-shelters').checked) {
+            if (document.getElementById('layer-shelters')?.checked) {
                 layerGroups.shelters.addTo(map);
             }
 
@@ -138,17 +134,14 @@ async function loadHospitals() {
         if (response.status === 'success') {
             const geojson = response.data;
 
-            // Clear existing layer
             layerGroups.hospitals.clearLayers();
 
-            // Custom hospital icon
             const hospitalIcon = L.divIcon({
                 className: 'hospital-marker',
                 html: '🏥',
                 iconSize: [25, 25]
             });
 
-            // Add GeoJSON to layer
             L.geoJSON(geojson, {
                 pointToLayer: (feature, latlng) => {
                     return L.marker(latlng, { icon: hospitalIcon });
@@ -170,8 +163,7 @@ async function loadHospitals() {
                 }
             }).addTo(layerGroups.hospitals);
 
-            // Add to map if checkbox is checked
-            if (document.getElementById('layer-hospitals').checked) {
+            if (document.getElementById('layer-hospitals')?.checked) {
                 layerGroups.hospitals.addTo(map);
             }
 
@@ -179,67 +171,6 @@ async function loadHospitals() {
         }
     } catch (error) {
         console.error('Error loading hospitals:', error);
-    }
-}
-
-/**
- * Load roads layer
- */
-async function loadRoads() {
-    try {
-        // Get current map bounds
-        const bounds = map.getBounds();
-        const bbox = [
-            bounds.getWest(),
-            bounds.getSouth(),
-            bounds.getEast(),
-            bounds.getNorth()
-        ];
-
-        const response = await LayersAPI.getRoads(bbox);
-
-        if (response.status === 'success') {
-            const geojson = response.data;
-
-            // Clear existing layer
-            layerGroups.roads.clearLayers();
-
-            // Add GeoJSON to layer
-            L.geoJSON(geojson, {
-                style: (feature) => {
-                    const isBlocked = feature.properties?.is_blocked;
-                    return {
-                        color: isBlocked ? '#ff0000' : '#333333',
-                        weight: isBlocked ? 3 : 2,
-                        opacity: 0.7
-                    };
-                },
-                onEachFeature: (feature, layer) => {
-                    if (feature.properties) {
-                        const props = feature.properties;
-                        const popupContent = `
-                            <div class="popup-header">🛣️ Road</div>
-                            <div class="popup-content">
-                                <p><strong>Name:</strong> ${props.name || 'Unnamed'}</p>
-                                <p><strong>Type:</strong> ${props.road_type || 'Unknown'}</p>
-                                <p><strong>Condition:</strong> ${props.condition || 'Unknown'}</p>
-                                <p><strong>Status:</strong> ${props.is_blocked ? '🚫 Blocked' : '✅ Open'}</p>
-                            </div>
-                        `;
-                        layer.bindPopup(popupContent);
-                    }
-                }
-            }).addTo(layerGroups.roads);
-
-            // Add to map if checkbox is checked
-            if (document.getElementById('layer-roads').checked) {
-                layerGroups.roads.addTo(map);
-            }
-
-            console.log('Roads loaded');
-        }
-    } catch (error) {
-        console.error('Error loading roads:', error);
     }
 }
 
@@ -253,10 +184,8 @@ async function loadBoundaries() {
         if (response.status === 'success') {
             const geojson = response.data;
 
-            // Clear existing layer
             layerGroups.boundaries.clearLayers();
 
-            // Add GeoJSON to layer
             L.geoJSON(geojson, {
                 style: {
                     fillColor: '#cccccc',
@@ -280,8 +209,7 @@ async function loadBoundaries() {
                 }
             }).addTo(layerGroups.boundaries);
 
-            // Add to map if checkbox is checked
-            if (document.getElementById('layer-boundaries').checked) {
+            if (document.getElementById('layer-boundaries')?.checked) {
                 layerGroups.boundaries.addTo(map);
             }
 
@@ -325,7 +253,7 @@ async function loadBuildings() {
                 }
             }).addTo(layerGroups.buildings);
 
-            if (document.getElementById('layer-buildings').checked) {
+            if (document.getElementById('layer-buildings')?.checked) {
                 layerGroups.buildings.addTo(map);
             }
 
@@ -359,7 +287,7 @@ async function loadCoastline() {
                 }
             }).addTo(layerGroups.coastline);
 
-            if (document.getElementById('layer-coastline').checked) {
+            if (document.getElementById('layer-coastline')?.checked) {
                 layerGroups.coastline.addTo(map);
             }
 
@@ -371,11 +299,11 @@ async function loadCoastline() {
 }
 
 /**
- * Load landslides layer
+ * Load landslides layer (uses Ambee fallback logic on backend)
  */
 async function loadLandslides() {
     try {
-        const response = await LayersAPI.getLandslides();
+        const response = await DisasterAPI.getLandslides();
 
         if (response.status === 'success') {
             const geojson = response.data;
@@ -392,12 +320,14 @@ async function loadLandslides() {
                 onEachFeature: (feature, layer) => {
                     if (feature.properties) {
                         const props = feature.properties;
+                        const source = response.source || 'Unknown';
                         const popupContent = `
                             <div class="popup-header">⚠️ Landslide Zone</div>
                             <div class="popup-content">
                                 <p><strong>District:</strong> ${props.district || 'Unknown'}</p>
                                 <p><strong>Severity:</strong> ${props.severity || 'High'}</p>
-                                <p><strong>Type:</strong> Landslide Hazard</p>
+                                <p><strong>Source:</strong> ${source}</p>
+                                ${props.soil_moisture ? `<p><strong>Soil Moisture:</strong> ${props.soil_moisture}%</p>` : ''}
                             </div>
                         `;
                         layer.bindPopup(popupContent);
@@ -405,11 +335,11 @@ async function loadLandslides() {
                 }
             }).addTo(layerGroups.landslides);
 
-            if (document.getElementById('layer-landslides').checked) {
+            if (document.getElementById('layer-landslides')?.checked) {
                 layerGroups.landslides.addTo(map);
             }
 
-            console.log('Landslides loaded');
+            console.log(`Landslides loaded (${response.source || 'Unknown'})`);
         }
     } catch (error) {
         console.error('Error loading landslides:', error);
@@ -421,7 +351,7 @@ async function loadLandslides() {
  */
 async function loadCyclone() {
     try {
-        const response = await LayersAPI.getCyclone();
+        const response = await DisasterAPI.getCyclone();
 
         if (response.status === 'success') {
             const geojson = response.data;
@@ -450,7 +380,7 @@ async function loadCyclone() {
                 }
             }).addTo(layerGroups.cyclone);
 
-            if (document.getElementById('layer-cyclone').checked) {
+            if (document.getElementById('layer-cyclone')?.checked) {
                 layerGroups.cyclone.addTo(map);
             }
 
@@ -466,7 +396,7 @@ async function loadCyclone() {
  */
 async function loadAffectedZones() {
     try {
-        const response = await LayersAPI.getAffectedZones();
+        const response = await DisasterAPI.getAllHazards();
 
         if (response.status === 'success') {
             const geojson = response.data;
@@ -504,7 +434,7 @@ async function loadAffectedZones() {
                 }
             }).addTo(layerGroups.affectedZones);
 
-            if (document.getElementById('layer-affected-zones').checked) {
+            if (document.getElementById('layer-affected-zones')?.checked) {
                 layerGroups.affectedZones.addTo(map);
             }
 
@@ -516,89 +446,293 @@ async function loadAffectedZones() {
 }
 
 /**
+ * Load live flood alerts from Ambee API
+ */
+async function loadLiveFlood() {
+    try {
+        const response = await DisasterAPI.getLiveFlood();
+
+        if (response.status === 'success') {
+            const geojson = response.data;
+
+            layerGroups.liveFlood.clearLayers();
+
+            L.geoJSON(geojson, {
+                pointToLayer: (feature, latlng) => {
+                    return L.circleMarker(latlng, {
+                        radius: 8,
+                        fillColor: '#00BFFF',
+                        color: '#0000CD',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    });
+                },
+                onEachFeature: (feature, layer) => {
+                    if (feature.properties) {
+                        const props = feature.properties;
+                        const popupContent = `
+                            <div class="popup-header">💧 Live Flood Alert</div>
+                            <div class="popup-content">
+                                <p><strong>Severity:</strong> ${props.severity || 'Unknown'}</p>
+                                <p><strong>Water Level:</strong> ${props.water_level || 'N/A'}m</p>
+                                <p><strong>Source:</strong> Ambee API (Live)</p>
+                                <p>${props.description || ''}</p>
+                            </div>
+                        `;
+                        layer.bindPopup(popupContent);
+                    }
+                }
+            }).addTo(layerGroups.liveFlood);
+
+            if (document.getElementById('layer-live-flood')?.checked) {
+                layerGroups.liveFlood.addTo(map);
+            }
+
+            console.log(`Live flood alerts loaded: ${geojson.features.length} alerts`);
+        }
+    } catch (error) {
+        console.error('Error loading live flood data:', error);
+    }
+}
+
+/**
+ * Load live cyclone alerts from Ambee API
+ */
+async function loadLiveCyclone() {
+    try {
+        const response = await DisasterAPI.getLiveCyclone();
+
+        if (response.status === 'success') {
+            const geojson = response.data;
+
+            layerGroups.liveCyclone.clearLayers();
+
+            L.geoJSON(geojson, {
+                pointToLayer: (feature, latlng) => {
+                    return L.circleMarker(latlng, {
+                        radius: 10,
+                        fillColor: '#FF1493',
+                        color: '#8B008B',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    });
+                },
+                onEachFeature: (feature, layer) => {
+                    if (feature.properties) {
+                        const props = feature.properties;
+                        const popupContent = `
+                            <div class="popup-header">🌀 Live Cyclone Alert</div>
+                            <div class="popup-content">
+                                <p><strong>Severity:</strong> ${props.severity || 'Unknown'}</p>
+                                <p><strong>Wind Speed:</strong> ${props.wind_speed || 'N/A'} km/h</p>
+                                <p><strong>Pressure:</strong> ${props.pressure || 'N/A'} hPa</p>
+                                <p><strong>Source:</strong> Ambee API (Live)</p>
+                            </div>
+                        `;
+                        layer.bindPopup(popupContent);
+                    }
+                }
+            }).addTo(layerGroups.liveCyclone);
+
+            if (document.getElementById('layer-live-cyclone')?.checked) {
+                layerGroups.liveCyclone.addTo(map);
+            }
+
+            console.log(`Live cyclone alerts loaded: ${geojson.features.length} alerts`);
+        }
+    } catch (error) {
+        console.error('Error loading live cyclone data:', error);
+    }
+}
+
+/**
+ * Load live landslide alerts from Ambee API
+ */
+async function loadLiveLandslide() {
+    try {
+        const response = await DisasterAPI.getLiveLandslide();
+
+        if (response.status === 'success') {
+            const geojson = response.data;
+
+            layerGroups.liveLandslide.clearLayers();
+
+            L.geoJSON(geojson, {
+                pointToLayer: (feature, latlng) => {
+                    return L.circleMarker(latlng, {
+                        radius: 8,
+                        fillColor: '#8B4513',
+                        color: '#654321',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    });
+                },
+                onEachFeature: (feature, layer) => {
+                    if (feature.properties) {
+                        const props = feature.properties;
+                        const popupContent = `
+                            <div class="popup-header">⚠️ Live Landslide Alert</div>
+                            <div class="popup-content">
+                                <p><strong>Severity:</strong> ${props.severity || 'Unknown'}</p>
+                                <p><strong>Soil Moisture:</strong> ${props.soil_moisture || 'N/A'}%</p>
+                                <p><strong>Risk Level:</strong> ${props.landslide_risk || 'Unknown'}</p>
+                                <p><strong>Source:</strong> Ambee API (Live)</p>
+                            </div>
+                        `;
+                        layer.bindPopup(popupContent);
+                    }
+                }
+            }).addTo(layerGroups.liveLandslide);
+
+            if (document.getElementById('layer-live-landslide')?.checked) {
+                layerGroups.liveLandslide.addTo(map);
+            }
+
+            console.log(`Live landslide alerts loaded: ${geojson.features.length} alerts`);
+        }
+    } catch (error) {
+        console.error('Error loading live landslide data:', error);
+    }
+}
+
+/**
  * Initialize layer control checkboxes
  */
 function initLayerControls() {
     // Boundaries toggle
-    document.getElementById('layer-boundaries').addEventListener('change', async (e) => {
-        if (e.target.checked) {
-            await loadBoundaries();
-        } else {
-            map.removeLayer(layerGroups.boundaries);
-        }
-    });
+    const boundariesCheckbox = document.getElementById('layer-boundaries');
+    if (boundariesCheckbox) {
+        boundariesCheckbox.addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                await loadBoundaries();
+            } else {
+                map.removeLayer(layerGroups.boundaries);
+            }
+        });
+    }
 
     // Buildings toggle
-    document.getElementById('layer-buildings').addEventListener('change', async (e) => {
-        if (e.target.checked) {
-            await loadBuildings();
-        } else {
-            map.removeLayer(layerGroups.buildings);
-        }
-    });
+    const buildingsCheckbox = document.getElementById('layer-buildings');
+    if (buildingsCheckbox) {
+        buildingsCheckbox.addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                await loadBuildings();
+            } else {
+                map.removeLayer(layerGroups.buildings);
+            }
+        });
+    }
 
     // Coastline toggle
-    document.getElementById('layer-coastline').addEventListener('change', async (e) => {
-        if (e.target.checked) {
-            await loadCoastline();
-        } else {
-            map.removeLayer(layerGroups.coastline);
-        }
-    });
+    const coastlineCheckbox = document.getElementById('layer-coastline');
+    if (coastlineCheckbox) {
+        coastlineCheckbox.addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                await loadCoastline();
+            } else {
+                map.removeLayer(layerGroups.coastline);
+            }
+        });
+    }
 
     // Landslides toggle
-    document.getElementById('layer-landslides').addEventListener('change', async (e) => {
-        if (e.target.checked) {
-            await loadLandslides();
-        } else {
-            map.removeLayer(layerGroups.landslides);
-        }
-    });
+    const landslidesCheckbox = document.getElementById('layer-landslides');
+    if (landslidesCheckbox) {
+        landslidesCheckbox.addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                await loadLandslides();
+            } else {
+                map.removeLayer(layerGroups.landslides);
+            }
+        });
+    }
 
     // Cyclone toggle
-    document.getElementById('layer-cyclone').addEventListener('change', async (e) => {
-        if (e.target.checked) {
-            await loadCyclone();
-        } else {
-            map.removeLayer(layerGroups.cyclone);
-        }
-    });
+    const cycloneCheckbox = document.getElementById('layer-cyclone');
+    if (cycloneCheckbox) {
+        cycloneCheckbox.addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                await loadCyclone();
+            } else {
+                map.removeLayer(layerGroups.cyclone);
+            }
+        });
+    }
 
     // Affected zones toggle
-    document.getElementById('layer-affected-zones').addEventListener('change', async (e) => {
-        if (e.target.checked) {
-            await loadAffectedZones();
-        } else {
-            map.removeLayer(layerGroups.affectedZones);
-        }
-    });
+    const affectedZonesCheckbox = document.getElementById('layer-affected-zones');
+    if (affectedZonesCheckbox) {
+        affectedZonesCheckbox.addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                await loadAffectedZones();
+            } else {
+                map.removeLayer(layerGroups.affectedZones);
+            }
+        });
+    }
 
     // Shelters toggle
-    document.getElementById('layer-shelters').addEventListener('change', (e) => {
-        if (e.target.checked) {
-            layerGroups.shelters.addTo(map);
-        } else {
-            map.removeLayer(layerGroups.shelters);
-        }
-    });
+    const sheltersCheckbox = document.getElementById('layer-shelters');
+    if (sheltersCheckbox) {
+        sheltersCheckbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                layerGroups.shelters.addTo(map);
+            } else {
+                map.removeLayer(layerGroups.shelters);
+            }
+        });
+    }
 
     // Hospitals toggle
-    document.getElementById('layer-hospitals').addEventListener('change', (e) => {
-        if (e.target.checked) {
-            layerGroups.hospitals.addTo(map);
-        } else {
-            map.removeLayer(layerGroups.hospitals);
-        }
-    });
+    const hospitalsCheckbox = document.getElementById('layer-hospitals');
+    if (hospitalsCheckbox) {
+        hospitalsCheckbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                layerGroups.hospitals.addTo(map);
+            } else {
+                map.removeLayer(layerGroups.hospitals);
+            }
+        });
+    }
 
-    // Roads toggle
-    document.getElementById('layer-roads').addEventListener('change', async (e) => {
-        if (e.target.checked) {
-            await loadRoads();
-        } else {
-            map.removeLayer(layerGroups.roads);
-        }
-    });
+    // Live Flood toggle
+    const liveFloodCheckbox = document.getElementById('layer-live-flood');
+    if (liveFloodCheckbox) {
+        liveFloodCheckbox.addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                await loadLiveFlood();
+            } else {
+                map.removeLayer(layerGroups.liveFlood);
+            }
+        });
+    }
+
+    // Live Cyclone toggle
+    const liveCycloneCheckbox = document.getElementById('layer-live-cyclone');
+    if (liveCycloneCheckbox) {
+        liveCycloneCheckbox.addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                await loadLiveCyclone();
+            } else {
+                map.removeLayer(layerGroups.liveCyclone);
+            }
+        });
+    }
+
+    // Live Landslide toggle
+    const liveLandslideCheckbox = document.getElementById('layer-live-landslide');
+    if (liveLandslideCheckbox) {
+        liveLandslideCheckbox.addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                await loadLiveLandslide();
+            } else {
+                map.removeLayer(layerGroups.liveLandslide);
+            }
+        });
+    }
 
     console.log('Layer controls initialized');
 }
@@ -609,13 +743,15 @@ if (typeof module !== 'undefined' && module.exports) {
         loadDisasterZones,
         loadShelters,
         loadHospitals,
-        loadRoads,
         loadBoundaries,
         loadBuildings,
         loadCoastline,
         loadLandslides,
         loadCyclone,
         loadAffectedZones,
+        loadLiveFlood,
+        loadLiveCyclone,
+        loadLiveLandslide,
         initLayerControls
     };
 }
