@@ -99,6 +99,15 @@ MAX_UPLOAD_SIZE = int(os.getenv('MAX_UPLOAD_SIZE', 16 * 1024 * 1024))  # 16MB
 # =============================================================================
 # Data Directories
 # =============================================================================
-RAW_DATA_DIR = 'data/raw'
-PROCESSED_DATA_DIR = 'data/processed'
-STATIC_DATA_DIR = 'frontend/static/data'
+
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+# Raw data folder (if needed later)
+RAW_DATA_DIR = os.path.join(BASE_DIR, "database", "raw")
+
+# Processed data folder (THIS IS WHAT data_loader USES)
+DATA_PROCESSED_DIR = os.path.join(BASE_DIR, "database", "processed")
+
+# (Optional) static data served to frontend
+STATIC_DATA_DIR = os.path.join(BASE_DIR, "frontend", "static", "data")
+

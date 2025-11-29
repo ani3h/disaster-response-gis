@@ -1,259 +1,236 @@
+# """
+# Shelters API Module
+# ===================
+# API endpoints for shelter and hospital information (GeoJSON based).
+# """
+
+# from flask import Blueprint, jsonify, request, current_app
+# from shapely.geometry import Point
+
+# from backend.core.data_loader import get_layer
+
+# shelters_bp = Blueprint("shelters", __name__)
+
+
+# # ---------- Helpers ----------
+
+# def _nearest_features(gdf, lat, lon, limit=5):
+#     """Return GeoJSON FeatureCollection of nearest features."""
+#     if gdf is None or gdf.empty:
+#         return {"type": "FeatureCollection", "features": []}
+
+#     pt = Point(lon, lat)
+#     gdf = gdf.copy()
+#     # Rough distance in degrees → km (1° ~ 111km)
+#     gdf["__dist"] = gdf.geometry.distance(pt) * 111.0
+#     gdf = gdf.sort_values("__dist").head(limit)
+#     gdf = gdf.drop(columns="__dist")
+
+#     return gdf.__geo_interface__
+
+
+# # ---------- API endpoints ----------
+
+# @shelters_bp.route("/nearest", methods=["POST"])
+# def get_nearest_shelters():
+#     """
+#     Find nearest shelters to a given location.
+#     """
+#     try:
+#         data = request.get_json()
+
+#         if not data or "latitude" not in data or "longitude" not in data:
+#             return (
+#                 jsonify(
+#                     {"status": "error", "message": "Missing latitude or longitude"}
+#                 ),
+#                 400,
+#             )
+
+#         lat = float(data["latitude"])
+#         lon = float(data["longitude"])
+#         limit = data.get("limit", 5)
+
+#         gdf = get_layer("shelters", current_app)
+#         geojson = _nearest_features(gdf, lat, lon, limit)
+
+#         return jsonify({"status": "success", "data": geojson}), 200
+
+#     except ValueError:
+#         return jsonify(
+#             {"status": "error", "message": "Invalid coordinate format"}
+#         ), 400
+#     except Exception as e:
+#         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# @shelters_bp.route("/all", methods=["GET"])
+# def get_all_shelters():
+#     """
+#     Get all shelters as GeoJSON.
+#     """
+#     try:
+#         gdf = get_layer("shelters", current_app)
+#         if gdf is None:
+#             geojson = {"type": "FeatureCollection", "features": []}
+#         else:
+#             geojson = gdf.__geo_interface__
+
+#         return jsonify({"status": "success", "data": geojson}), 200
+
+#     except Exception as e:
+#         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# @shelters_bp.route("/hospitals/nearest", methods=["POST"])
+# def get_nearest_hospitals():
+#     """
+#     Find nearest hospitals to a given location.
+#     """
+#     try:
+#         data = request.get_json()
+
+#         if not data or "latitude" not in data or "longitude" not in data:
+#             return (
+#                 jsonify(
+#                     {"status": "error", "message": "Missing latitude or longitude"}
+#                 ),
+#                 400,
+#             )
+
+#         lat = float(data["latitude"])
+#         lon = float(data["longitude"])
+#         limit = data.get("limit", 5)
+
+#         gdf = get_layer("hospitals", current_app)
+#         geojson = _nearest_features(gdf, lat, lon, limit)
+
+#         return jsonify({"status": "success", "data": geojson}), 200
+
+#     except ValueError:
+#         return jsonify(
+#             {"status": "error", "message": "Invalid coordinate format"}
+#         ), 400
+#     except Exception as e:
+#         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# @shelters_bp.route("/hospitals/all", methods=["GET"])
+# def get_all_hospitals():
+#     """
+#     Get all hospitals as GeoJSON.
+#     """
+#     try:
+#         gdf = get_layer("hospitals", current_app)
+#         if gdf is None:
+#             geojson = {"type": "FeatureCollection", "features": []}
+#         else:
+#             geojson = gdf.__geo_interface__
+
+#         return jsonify({"status": "success", "data": geojson}), 200
+
+#     except Exception as e:
+#         return jsonify({"status": "error", "message": str(e)}), 500
 """
-Shelters API Module
-===================
-API endpoints for shelter and hospital information.
+Shelters API Module (Direct Loading Version)
+===========================================
+Loads GeoJSON from DATA[] which is preloaded at startup.
 """
 
 from flask import Blueprint, jsonify, request
-from backend.db.postgis_queries import find_nearest_facilities
+from shapely.geometry import Point
+from backend.core.data_loader import DATA   # << Direct access
+
+shelters_bp = Blueprint("shelters", __name__)
 
 
-# Create Blueprint
-shelters_bp = Blueprint('shelters', __name__)
+# ---------- Helper: nearest shelters/hospitals ----------
+
+def _nearest_features(geojson, lat, lon, limit=5):
+    """Return nearest features from a loaded GeoJSON (DATA[] version)."""
+
+    if not geojson or "features" not in geojson:
+        return {"type": "FeatureCollection", "features": []}
+
+    pt = Point(lon, lat)
+
+    # Convert GeoJSON → list of features with distance
+    enriched = []
+    for feat in geojson["features"]:
+        geom = feat.get("geometry")
+        if not geom:
+            continue
+
+        try:
+            shp = Point(geom["coordinates"][0], geom["coordinates"][1])
+            dist = shp.distance(pt) * 111.0   # degrees → km
+            enriched.append((dist, feat))
+        except:
+            continue
+
+    # Sort and return top N
+    enriched.sort(key=lambda x: x[0])
+    nearest = [f for (_, f) in enriched[:limit]]
+
+    return {
+        "type": "FeatureCollection",
+        "features": nearest
+    }
 
 
-@shelters_bp.route('/nearest', methods=['POST'])
-def get_nearest_shelters():
-    """
-    Find nearest shelters to a given location.
+# ---------- API ENDPOINTS ----------
 
-    Request Body:
-        {
-            "latitude": float,
-            "longitude": float,
-            "limit": int (optional, default: 5),
-            "max_distance_km": float (optional, default: 50)
-        }
-
-    Returns:
-        JSON: List of nearest shelters with distances
-    """
-    try:
-        data = request.get_json()
-
-        if not data or 'latitude' not in data or 'longitude' not in data:
-            return jsonify({
-                'status': 'error',
-                'message': 'Missing latitude or longitude'
-            }), 400
-
-        lat = float(data['latitude'])
-        lon = float(data['longitude'])
-        limit = data.get('limit', 5)
-        max_distance_km = data.get('max_distance_km', 50)
-
-        # Find nearest shelters using PostGIS query
-        shelters = find_nearest_facilities(
-            lat, lon,
-            'shelters',
-            limit=limit,
-            max_distance_km=max_distance_km
-        )
-
-        return jsonify({
-            'status': 'success',
-            'data': shelters,
-            'count': len(shelters)
-        }), 200
-
-    except ValueError:
-        return jsonify({
-            'status': 'error',
-            'message': 'Invalid coordinate format'
-        }), 400
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-
-@shelters_bp.route('/all', methods=['GET'])
+@shelters_bp.route("/all", methods=["GET"])
 def get_all_shelters():
-    """
-    Get all shelters as GeoJSON.
+    """Return ALL shelters from DATA."""
+    shelters = DATA.get("shelters")
 
-    Query Parameters:
-        bbox (str, optional): Bounding box filter (minLon,minLat,maxLon,maxLat)
-        has_capacity (bool, optional): Filter shelters with available capacity
+    if shelters is None:
+        return jsonify({"status": "success", "data": {"type": "FeatureCollection", "features": []}})
 
-    Returns:
-        JSON: GeoJSON FeatureCollection of shelters
-    """
-    try:
-        # TODO: Query database for all shelters with filters
-
-        # Placeholder response
-        geojson = {
-            'type': 'FeatureCollection',
-            'features': [
-                {
-                    'type': 'Feature',
-                    'geometry': {
-                        'type': 'Point',
-                        'coordinates': [78.9629, 20.5937]
-                    },
-                    'properties': {
-                        'id': 1,
-                        'name': 'Central Emergency Shelter',
-                        'capacity': 500,
-                        'current_occupancy': 120,
-                        'has_food': True,
-                        'has_water': True,
-                        'has_medical': True
-                    }
-                }
-            ]
-        }
-
-        return jsonify({
-            'status': 'success',
-            'data': geojson
-        }), 200
-
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
+    return jsonify({"status": "success", "data": shelters})
 
 
-@shelters_bp.route('/capacity', methods=['GET'])
-def get_shelter_capacity_summary():
-    """
-    Get summary of shelter capacity across all shelters.
+@shelters_bp.route("/hospitals/all", methods=["GET"])
+def get_all_hospitals():
+    """Return ALL hospitals from DATA."""
+    hospitals = DATA.get("hospitals")
 
-    Returns:
-        JSON: Shelter capacity statistics
-    """
-    try:
-        # TODO: Query database for capacity statistics
+    if hospitals is None:
+        return jsonify({"status": "success", "data": {"type": "FeatureCollection", "features": []}})
 
-        # Placeholder response
-        summary = {
-            'total_shelters': 25,
-            'total_capacity': 12500,
-            'current_occupancy': 3420,
-            'available_capacity': 9080,
-            'occupancy_rate': 27.36,
-            'shelters_at_capacity': 2,
-            'shelters_with_food': 22,
-            'shelters_with_medical': 15
-        }
-
-        return jsonify({
-            'status': 'success',
-            'data': summary
-        }), 200
-
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
+    return jsonify({"status": "success", "data": hospitals})
 
 
-@shelters_bp.route('/hospitals/nearest', methods=['POST'])
-def get_nearest_hospitals():
-    """
-    Find nearest hospitals to a given location.
-
-    Request Body:
-        {
-            "latitude": float,
-            "longitude": float,
-            "limit": int (optional, default: 5),
-            "emergency_ready": bool (optional, filter for emergency ready)
-        }
-
-    Returns:
-        JSON: List of nearest hospitals
-    """
+@shelters_bp.route("/nearest", methods=["POST"])
+def get_nearest_shelters():
+    """Return nearest shelters to a coordinate."""
     try:
         data = request.get_json()
+        lat = float(data["latitude"])
+        lon = float(data["longitude"])
+        limit = int(data.get("limit", 5))
+    except:
+        return jsonify({"status": "error", "message": "Invalid input"}), 400
 
-        if not data or 'latitude' not in data or 'longitude' not in data:
-            return jsonify({
-                'status': 'error',
-                'message': 'Missing latitude or longitude'
-            }), 400
+    geojson = DATA.get("shelters")
+    nearest = _nearest_features(geojson, lat, lon, limit)
 
-        lat = float(data['latitude'])
-        lon = float(data['longitude'])
-        limit = data.get('limit', 5)
-
-        # Find nearest hospitals
-        hospitals = find_nearest_facilities(
-            lat, lon,
-            'hospitals',
-            limit=limit,
-            max_distance_km=100
-        )
-
-        return jsonify({
-            'status': 'success',
-            'data': hospitals,
-            'count': len(hospitals)
-        }), 200
-
-    except ValueError:
-        return jsonify({
-            'status': 'error',
-            'message': 'Invalid coordinate format'
-        }), 400
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
+    return jsonify({"status": "success", "data": nearest})
 
 
-@shelters_bp.route('/hospitals/all', methods=['GET'])
-def get_all_hospitals():
-    """
-    Get all hospitals as GeoJSON.
-
-    Returns:
-        JSON: GeoJSON FeatureCollection of hospitals
-    """
+@shelters_bp.route("/hospitals/nearest", methods=["POST"])
+def get_nearest_hospitals():
+    """Return nearest hospitals to a coordinate."""
     try:
-        # TODO: Query database for all hospitals
+        data = request.get_json()
+        lat = float(data["latitude"])
+        lon = float(data["longitude"])
+        limit = int(data.get("limit", 5))
+    except:
+        return jsonify({"status": "error", "message": "Invalid input"}), 400
 
-        # Placeholder response
-        geojson = {
-            'type': 'FeatureCollection',
-            'features': [
-                {
-                    'type': 'Feature',
-                    'geometry': {
-                        'type': 'Point',
-                        'coordinates': [78.9629, 20.5937]
-                    },
-                    'properties': {
-                        'id': 1,
-                        'name': 'District General Hospital',
-                        'capacity': 200,
-                        'emergency_ready': True,
-                        'facility_type': 'General'
-                    }
-                }
-            ]
-        }
+    geojson = DATA.get("hospitals")
+    nearest = _nearest_features(geojson, lat, lon, limit)
 
-        return jsonify({
-            'status': 'success',
-            'data': geojson
-        }), 200
-
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-
-# TODO: Add more shelter/hospital endpoints:
-# - PUT /shelters/<id>/occupancy - Update shelter occupancy
-# - POST /shelters/recommend - Recommend best shelter for user
-# - GET /shelters/<id>/directions - Get directions to shelter
-# - POST /hospitals/emergency - Find emergency-ready hospitals
+    return jsonify({"status": "success", "data": nearest})

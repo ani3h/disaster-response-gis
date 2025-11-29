@@ -13,6 +13,19 @@ let endCoords = null;
 /**
  * Initialize routing controls
  */
+function showLoading(msg = "Calculating safe route...") {
+    const loader = document.getElementById("loading-indicator");
+    if (loader) {
+        loader.style.display = "block";
+        loader.innerText = msg;
+    }
+}
+
+function hideLoading() {
+    const loader = document.getElementById("loading-indicator");
+    if (loader) loader.style.display = "none";
+}
+
 function initRoutingControls() {
     // Click on map to set start/end points
     map.on('click', (e) => {
@@ -188,7 +201,9 @@ async function calculateRoute() {
         alert('Failed to calculate route. Please check your connection and try again.');
     } finally {
         showLoading(false);
+        document.getElementById("loading-overlay").style.display = "none";
     }
+    
 }
 
 /**

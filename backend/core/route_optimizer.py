@@ -282,6 +282,7 @@ def find_alternative_routes(graph, start_point, end_point, num_routes=3):
                 routes.append(route)
 
         except Exception as e:
+            pass
 
         return routes
 

@@ -49,6 +49,7 @@ logs/
 *.sqlite3
 
 # Data files (large datasets should not be in git)
+database/
 data/raw/*.shp
 data/raw/*.geojson
 data/raw/*.kml
