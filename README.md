@@ -49,16 +49,11 @@ disaster-response-gis/
 │   │   ├── route_optimizer.py  # Route calculation (NetworkX)
 │   │   └── impact_analysis.py  # Severity + exposure analysis
 │   │
-│   ├── db/
-│   │   ├── db_connection.py   # PostGIS connection
-│   │   ├── models.py          # DB models
-│   │   └── postgis_queries.py # Spatial SQL calls
-│   │
 │   ├── services/
 │   │   ├── real_time_fetcher.py # Live data fetch
 │   │   └── cache_manager.py    # API caching
 │   │
-│   └── __init__.py
+│   └── init__.py
 │
 ├── frontend/                # Web dashboard (Leaflet)
 │   ├── templates/index.html # Main UI
@@ -69,6 +64,12 @@ disaster-response-gis/
 │           ├── layers.js     # Layer toggles
 │           ├── routing.js    # Route drawing
 │           └── api_client.js # API calls
+│
+├── tests/                # Testing Files
+│   ├── conftest.py
+│   ├── test_api_endpoints.py
+│   ├── test_data_intergration.py
+│   └── test_routing_api.py
 │
 └── data/                    # GIS datasets
     ├── raw/                 # Raw data
